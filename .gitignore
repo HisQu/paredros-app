@@ -1,3 +1,4 @@
+.venv
 # Logs
 logs
 *.log
@@ -23,5 +24,5 @@ dist-ssr
 *.sln
 *.sw?
 
-# python
-**/__pycache__
+# python cache files
+src-tauri/paredros-debugger/__pycache__
