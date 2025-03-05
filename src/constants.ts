@@ -116,4 +116,9 @@ nestedAdditionNode.alternative_nodes = [numberNode4];
 
 /// END constants for parse node testing
 
-export {rootNode, additionNode, nestedAdditionNode, numberNode12, numberNode4}
+const grammarFiles = [
+    { name: "Regest.g4", language: "antlr4", content: "Grammarregest" },
+    { name: "Stadtnamen.g4", language: "antlr4", content: "STADT" },
+  ];
+
+export {rootNode, additionNode, nestedAdditionNode, numberNode12, numberNode4, grammarFiles}
