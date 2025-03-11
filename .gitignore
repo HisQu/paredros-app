@@ -26,3 +26,8 @@ dist-ssr
 
 # python cache files
 src-tauri/paredros-debugger/__pycache__
+
+# antlr4 generated files
+.antlr
+*.java
+*.tokens
