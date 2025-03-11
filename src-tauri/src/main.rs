@@ -51,10 +51,10 @@ fn get_parse_steps(
         sys_path.insert(0, "paredros-debugger")
             .map_err(|e| e.to_string())?;
 
-        // Import the Python module (e.g. paredros-debugger/main.py becomes module "main").
-        let module = py.import("main").map_err(|e| e.to_string())?;
+        // Import the Python module (e.g. paredros-debugger/get_parse_info.py becomes module "get_parse_info").
+        let module = py.import("get_parse_info").map_err(|e| e.to_string())?;
         // Get the Python function.
-        let func = module.getattr("get_parse_steps").map_err(|e| e.to_string())?;
+        let func = module.getattr("get_parse_info").map_err(|e| e.to_string())?;
         // Call the function with the provided arguments; it returns an instance of ParseStep.
         let py_instance = func
             .call1((grammar, input))

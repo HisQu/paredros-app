@@ -1,4 +1,5 @@
-parser grammar RegestParser;
+grammar Regest;
+import Lexer;
 
 startRule : head sublemma ;
 
@@ -74,5 +75,4 @@ alias : (AL | D | DICTUS | AL DICTUS | AL D) name ;
 diocAbks : STADTNAMEN ;
 
 // Whitespace
-WS : [ 	
-]+ -> skip ;
+WS : [ 	]+ -> skip ;

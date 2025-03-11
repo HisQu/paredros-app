@@ -25,7 +25,7 @@ dist-ssr
 *.sw?
 
 # python cache files
-src-tauri/paredros-debugger/__pycache__
+**/__pycache__
 
 # antlr4 generated files
 .antlr

@@ -1,4 +1,4 @@
-lexer grammar RegestLexer;
+lexer grammar Lexer;
 
 // Lexer Rules for tags
 HEADTAG : '<head>' ;
