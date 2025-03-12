@@ -32,3 +32,6 @@ dist-ssr
 *.java
 *.tokens
 *.interp
+
+# generated parsers
+examples/**/**/*.py
