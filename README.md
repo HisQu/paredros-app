@@ -15,7 +15,7 @@ source .venv/bin/activate && pip install -r requirements.txt
 
 3. Pull the [paredros debugger Python package](https://gitlab.com/mephisto-jena/paredros-debugger) from source and install it using this command:
 ```shell
-python3 -m pip install --editable /home/frand/paredros-debugger
+python3 -m pip install --editable ~/paredros-debugger
 ```
 
 4. Install all requirements for Tauri development, see [Prerequisites](https://v1.tauri.app/v1/guides/getting-started/prerequisites).
@@ -23,13 +23,13 @@ python3 -m pip install --editable /home/frand/paredros-debugger
 5. Install all node packages:
 ```shell
 yarn # OR
-npm
+npm i
 ```
 
 6. Start the tauri installation with the command
 ```shell
-npm run tauri dev # OR
-yarn run tauri dev
+yarn run tauri dev # OR
+npm run tauri dev
 ```
 
 ## Hints
