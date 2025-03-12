@@ -9,16 +9,15 @@ use std::{
 };
 use tauri::State;
 
-/// A store for Python ParseStep instances.
-struct ParseStepStore {
+/// A store for Python ParseInformation instances.
+struct ParseInfoStore {
     /// A counter used to generate unique IDs.
     counter: AtomicUsize,
     /// A mapping from unique IDs to Python objects.
     nodes: Mutex<HashMap<usize, Py<PyAny>>>,
 }
 
-// Implement Default so we can initialize it easily.
-impl Default for ParseStepStore {
+impl Default for ParseInfoStore {
     fn default() -> Self {
         Self {
             counter: AtomicUsize::new(1),
@@ -33,13 +32,13 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-/// Create a new ParseStep by calling Python's get_parse_steps function.
-/// Returns an ID (handle) to the created ParseStep instance.
+/// Create a new ParseInformation instance by calling Python's get_parse_info function.
+/// Returns an ID (handle) for the created instance.
 #[tauri::command]
-fn get_parse_steps(
+fn get_parse_info(
     grammar: String,
     input: String,
-    store: State<ParseStepStore>,
+    store: State<ParseInfoStore>,
 ) -> Result<usize, String> {
     Python::with_gil(|py| {
         // Extend sys.path so that Python can find your modules.
@@ -48,71 +47,60 @@ fn get_parse_steps(
         let sys_path = path_obj
             .downcast::<PyList>()
             .map_err(|e| e.to_string())?;
+        // Adjust the path as needed so that the paredros_debugger package is found.
         sys_path.insert(0, "paredros-debugger")
             .map_err(|e| e.to_string())?;
 
-        // Import the Python module (e.g. paredros-debugger/get_parse_info.py becomes module "get_parse_info").
+        // Import the Python module that exposes get_parse_info.
         let module = py.import("get_parse_info").map_err(|e| e.to_string())?;
-        // Get the Python function.
+        // Get the function.
         let func = module.getattr("get_parse_info").map_err(|e| e.to_string())?;
-        // Call the function with the provided arguments; it returns an instance of ParseStep.
+        // Call the function with the provided arguments; it returns a ParseInformation instance.
         let py_instance = func
             .call1((grammar, input))
             .map_err(|e| e.to_string())?;
-        // Convert to an owned Py<PyAny> to store it safely.
-        let parse_node: Py<PyAny> = py_instance.into();
+        let parse_info: Py<PyAny> = py_instance.into();
 
-        // Generate a unique ID and store the ParseStep instance.
+        // Generate a unique ID and store the ParseInformation instance.
         let id = store.counter.fetch_add(1, Ordering::SeqCst);
-        store.nodes.lock().unwrap().insert(id, parse_node);
+        store.nodes.lock().unwrap().insert(id, parse_info);
         Ok(id)
     })
 }
 
-/// Call the Python method get_some_variable on the ParseStep instance identified by `id`.
+/// Retrieve a string representation of the parse tree from the stored ParseInformation instance.
+/// (Assumes that your ParseInformation class has a get_parse_tree method.)
 #[tauri::command]
-fn parse_node_get_some_variable(
+fn get_parse_tree(
     id: usize,
-    store: State<ParseStepStore>,
+    store: State<ParseInfoStore>,
 ) -> Result<String, String> {
-    // Get a reference to the Python object.
     let nodes = store.nodes.lock().unwrap();
-    let node = nodes.get(&id).ok_or("Invalid parse node id")?;
+    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
     Python::with_gil(|py| {
-        let res = node
-            .call_method0(py, "get_some_variable")
+        let res = parse_info
+            .getattr(py, "parse_tree")
             .map_err(|e| e.to_string())?;
-        res.extract::<String>(py)
-            .map_err(|e| e.to_string())
+        res.extract::<String>(py).map_err(|e| e.to_string())
     })
 }
 
-/// Call the Python method set_some_variable on the ParseStep instance identified by `id`.
-/// The value is passed as a string.
+struct UserGrammar {
+    grammar_files: ...
+}
+
 #[tauri::command]
-fn parse_node_set_some_variable(
+fn get_grammar(
     id: usize,
-    value: String,
-    store: State<ParseStepStore>,
-) -> Result<(), String> {
+    store: State<ParseInfoStore>,
+) -> Result<String, String> {
     let nodes = store.nodes.lock().unwrap();
-    let node = nodes.get(&id).ok_or("Invalid parse node id")?;
+    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
     Python::with_gil(|py| {
-        node.call_method1(py, "set_some_variable", (value,))
-        .map(|_| ())
-        .map_err(|e| e.to_string())
-    })
-}
-
-/// (Optional) Expose other methods, e.g. method1.
-#[tauri::command]
-fn parse_node_method1(id: usize, store: State<ParseStepStore>) -> Result<(), String> {
-    let nodes = store.nodes.lock().unwrap();
-    let node = nodes.get(&id).ok_or("Invalid parse node id")?;
-    Python::with_gil(|py| {
-        node.call_method0(py, "method1")
-            .map(|_| ())
-            .map_err(|e| e.to_string())
+        let res = parse_info
+            .getattr(py, "grammar")
+            .map_err(|e| e.to_string())?;
+        res.extract::<UserGrammar>(py).map_err(|e| e.to_string())
     })
 }
 
@@ -121,14 +109,12 @@ fn main() {
     pyo3::prepare_freethreaded_python();
 
     tauri::Builder::default()
-        // Make our ParseStepStore available as Tauri state.
-        .manage(ParseStepStore::default())
+        // Make our ParseInfoStore available as Tauri state.
+        .manage(ParseInfoStore::default())
         .invoke_handler(tauri::generate_handler![
             greet,
-            get_parse_steps,
-            parse_node_get_some_variable,
-            parse_node_set_some_variable,
-            parse_node_method1
+            get_parse_info,
+            get_parse_tree
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

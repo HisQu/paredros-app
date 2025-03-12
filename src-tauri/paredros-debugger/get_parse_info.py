@@ -11,4 +11,4 @@ def get_parse_info(grammar_file_path: str, input_file_path: str) -> ParseInforma
 
 
 if __name__ == "__main__":
-    get_parse_info("../../example/Regest/Regest.g4", "../../example/Regest/input.txt")
+    get_parse_info("../../examples/Regest/Regest.g4", "../../examples/Regest/input.txt")

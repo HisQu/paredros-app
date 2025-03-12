@@ -31,3 +31,4 @@ dist-ssr
 .antlr
 *.java
 *.tokens
+*.interp
