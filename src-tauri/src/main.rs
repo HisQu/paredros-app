@@ -4,9 +4,10 @@
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{atomic::{AtomicUsize, Ordering}, Mutex},
 };
+use serde::Serialize;
 use tauri::State;
 
 /// A store for Python ParseInformation instances.
@@ -85,22 +86,56 @@ fn get_parse_tree(
     })
 }
 
+#[derive(Debug, FromPyObject, Serialize)]
+struct GrammarRule {
+    #[pyo3(attribute)]
+    name: String,
+    #[pyo3(attribute)]
+    content: String,
+    #[pyo3(attribute("start_line"))]
+    start_line: i32,
+    #[pyo3(attribute("end_line"))]
+    end_line: i32,
+    #[pyo3(attribute("start_pos"))]
+    start_pos: i32,
+    #[pyo3(attribute("end_pos"))]
+    end_pos: i32,
+}
+
+#[derive(Debug, FromPyObject, Serialize)]
+struct GrammarFile {
+    #[pyo3(attribute)]
+    path: String,
+    #[pyo3(attribute)]
+    directory: String,
+    #[pyo3(attribute)]
+    rules: HashMap<String, GrammarRule>,
+    #[pyo3(attribute)]
+    imports: Vec<String>,
+}
+
+#[derive(Debug, FromPyObject, Serialize)]
 struct UserGrammar {
-    grammar_files: ...
+    #[pyo3(attribute("grammar_files"))]
+    grammar_files: HashMap<String, GrammarFile>,
+    #[pyo3(attribute("processed_files"))]
+    processed_files: HashSet<String>,
 }
 
 #[tauri::command]
-fn get_grammar(
+fn get_user_grammar(
     id: usize,
     store: State<ParseInfoStore>,
-) -> Result<String, String> {
+) -> Result<UserGrammar, String> {
     let nodes = store.nodes.lock().unwrap();
     let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
+    
     Python::with_gil(|py| {
-        let res = parse_info
+        let py_grammar = parse_info
             .getattr(py, "grammar")
             .map_err(|e| e.to_string())?;
-        res.extract::<UserGrammar>(py).map_err(|e| e.to_string())
+        
+        py_grammar.extract(py).map_err(|e| e.to_string())
     })
 }
 
@@ -114,7 +149,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             greet,
             get_parse_info,
-            get_parse_tree
+            get_parse_tree,
+            get_user_grammar
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

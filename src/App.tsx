@@ -177,6 +177,7 @@ function App() {
 
   const [parseInfo, setParseInfo] = useState("");
   const [parseTree, setParseTree] = useState("");
+  const [userGrammar, setUserGrammar] = useState("");
   const grammar_file_path = "../examples/Regest/Regest.g4";
   const input_file_path = "../examples/Regest/input.txt";
 
@@ -188,14 +189,20 @@ function App() {
     setParseTree(await invoke("get_parse_tree", { id: parseInfo }));
   }
 
+  async function get_user_grammar() {
+    setUserGrammar(await invoke("get_user_grammar", { id: parseInfo }))
+    console.log("get user grammar")
+    console.log(userGrammar)
+  }
+
   return (
     <div className="bg-white text-zinc-900" style={{ height: "calc(100vh - 3rem)" }}>
       {/* Header */}
-      <header className="p-4 h-32 border-b border-zinc-200 grid grid-cols-1 gap-2">
+      <header className="p-4 h-96 border-b border-zinc-200 grid grid-cols-1 gap-2">
         <div className="flex gap-2 w-full">
           <Button color="indigo" onClick={get_parse_info}>Generate Parser</Button>
           <Button color="indigo" onClick={get_parse_tree}>Parse Input File</Button>
-          <Button color="blue" className={`mr-2 p-2 rounded`} onClick={() => { }}>Load Input File from Disk</Button>
+          <Button color="blue" className={`mr-2 p-2 rounded`} onClick={get_user_grammar}>Load Input File from Disk</Button>
         </div>
 
         <div className="flex justify-center gap-2 font-mono bg-violet-100 text-gray-800 p-4">
