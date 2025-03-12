@@ -190,7 +190,7 @@ function App() {
   }
 
   async function get_user_grammar() {
-    setUserGrammar(await invoke("get_user_grammar", { id: parseInfo }))
+    await setUserGrammar(await invoke("get_user_grammar", { id: parseInfo }))
     console.log("get user grammar")
     console.log(userGrammar)
   }
