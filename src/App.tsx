@@ -1,11 +1,16 @@
 import { useState, useCallback } from "react";
 // Tauri
 import { invoke } from "@tauri-apps/api/core";
+import * as path from '@tauri-apps/api/path';
+import { open } from '@tauri-apps/plugin-dialog';
+import { writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
 // UI Components
 import './App.css';
 import { Button } from './ui/button';
+// Interfaces
+import {UserGrammar} from "./interfaces/UserGrammar.ts";
 // Mockup/Helper values
-import { grammarFiles, antlr4MonarchLanguage, sampleInputText, longTreeTemplate, initialEdges, initialNodes, nodeHeight, nodeWidth } from "./constants";
+import { tempFileName, grammarFiles, antlr4MonarchLanguage, sampleInputText, longTreeTemplate, initialEdges, initialNodes, nodeHeight, nodeWidth } from "./constants";
 const readTemplate = (template: any, data: any = { items: {} }): any => {
   for (const [key, value] of Object.entries(template)) {
     // eslint-disable-next-line no-param-reassign
@@ -59,9 +64,9 @@ function App() {
   const [activeFileIndex, setActiveFileIndex] = useState(0);
 
   // Add a new file with default "Grammar" content.
-  const addFile = () => {
+  const addFile = (name: string) => {
     const newFile = {
-      name: `Grammar${files.length + 1}`,
+      name: name,
       language: "antlr4",
       content: "// new file",
     };
@@ -175,24 +180,75 @@ function App() {
     );
   };
 
-  const [parseInfo, setParseInfo] = useState("");
-  const [parseTree, setParseTree] = useState("");
-  const [userGrammar, setUserGrammar] = useState("");
-  const grammar_file_path = "../examples/Regest/Regest.g4";
-  const input_file_path = "../examples/Regest/input.txt";
+  const [grammarFileLocation, setFileLocation] = useState("");
 
-  async function get_parse_info() {
-    setParseInfo(await invoke("get_parse_info", { grammar: grammar_file_path, input: input_file_path }))
+  async function load_grammar_file() {
+    const file = await open({
+      multiple: false,
+      directory: false,
+    });
+
+    if (file) {
+      setFileLocation(file);
+      await get_parse_info();
+    }
   }
 
+  // parse info and user grammar variables which are filled after loading a grammar and generating a parser
+  const [parseInfo, setParseInfo] = useState("");
+  const [parseTree, setParseTree] = useState();
+  const [userGrammar, setUserGrammar] = useState<UserGrammar>();
+
+  // expression editor content (other editor is handled separately)
+  const [expressionContent, setExpressionContent] = useState(sampleInputText);
+
+  async function get_parse_info() {
+    setParseInfo(await invoke("get_parse_info", { grammar: grammarFileLocation }))
+    get_user_grammar();
+  }
+
+  async function parse_input() {
+    // save the file to the temporary location
+    const res = await writeTextFile(tempFileName, expressionContent, { baseDir: BaseDirectory.Temp });
+    console.log("writeTextFile response", res);
+
+    console.log("path", await path.join(await path.tempDir(), tempFileName))
+
+    // call parse input
+    await invoke("parse_input", { 
+      id: parseInfo, 
+      input: await path.join(await path.tempDir(), tempFileName) 
+    })
+  }
+
+  /*
   async function get_parse_tree() {
     setParseTree(await invoke("get_parse_tree", { id: parseInfo }));
   }
+  */
 
   async function get_user_grammar() {
-    await setUserGrammar(await invoke("get_user_grammar", { id: parseInfo }))
-    console.log("get user grammar")
-    console.log(userGrammar)
+    setUserGrammar(await invoke("get_user_grammar", { id: parseInfo }))
+    setFiles([]);
+    if (userGrammar) {
+      Object.entries(userGrammar.grammar_files).forEach(([fileKey, grammarFile]) => {
+        console.log(`Processing file key: ${fileKey}`);
+        console.log(`Path: ${grammarFile.path}`);
+        console.log(`Directory: ${grammarFile.directory}`);
+        console.log(`Imports: ${grammarFile.imports.join(", ")}`);
+    
+        // Iterate over each GrammarRule in the rules object of the current GrammarFile
+        Object.entries(grammarFile.rules).forEach(([ruleKey, rule]) => {
+          console.log(`  Rule key: ${ruleKey}`);
+          console.log(`    Name: ${rule.name}`);
+          console.log(`    Content: ${rule.content}`);
+          console.log(`    Lines: ${rule.start_line} - ${rule.end_line}`);
+          console.log(`    Positions: ${rule.start_pos} - ${rule.end_pos}`);
+        });
+
+        addFile(grammarFile.path);
+      });
+    }
   }
 
   return (
@@ -200,14 +256,14 @@ function App() {
       {/* Header */}
       <header className="p-4 h-96 border-b border-zinc-200 grid grid-cols-1 gap-2">
         <div className="flex gap-2 w-full">
+          <Button color="lime" onClick={load_grammar_file}>Load a grammar file</Button>
           <Button color="indigo" onClick={get_parse_info}>Generate Parser</Button>
-          <Button color="indigo" onClick={get_parse_tree}>Parse Input File</Button>
-          <Button color="blue" className={`mr-2 p-2 rounded`} onClick={get_user_grammar}>Load Input File from Disk</Button>
+          <Button color="indigo" onClick={parse_input}>Parse Input File</Button>
         </div>
 
         <div className="flex justify-center gap-2 font-mono bg-violet-100 text-gray-800 p-4">
           Henricus de ●<span className="underline underline-offset-4 decoration-violet-400 font-black hover:decoration-4">Bocholdia</span>
-          { parseInfo } { parseTree }
+          { grammarFileLocation } { parseInfo } { parseTree }
         </div>
       </header>
       <Allotment vertical={true}>
@@ -275,6 +331,7 @@ function App() {
                 options={{
                   wordWrap: "on",
                 }}
+                onChange={(value) => setExpressionContent(value || "")}
                 defaultValue={sampleInputText} />
             </Allotment.Pane>
           </Allotment>

@@ -1,8 +1,8 @@
 from paredros_debugger.ParseInformation import ParseInformation
 
-def get_parse_info(grammar_file_path: str, input_file_path: str) -> ParseInformation:
+def get_parse_info(grammar_file_path: str) -> ParseInformation:
     try:
-        parse_info = ParseInformation(grammar_file_path, input_file_path)
+        parse_info = ParseInformation(grammar_file_path)
 
         return parse_info
 
