@@ -12,6 +12,7 @@ export interface GrammarRule {
     directory: string;
     rules: Record<string, GrammarRule>;
     imports: string[];
+    content: string;
   }
   
   export interface UserGrammar {

@@ -11,7 +11,7 @@ use std::{
         Mutex,
     },
 };
-use tauri::State;
+use tauri::{Manager, State};
 
 /// A store for Python ParseInformation instances.
 struct ParseInfoStore {
@@ -125,6 +125,8 @@ struct GrammarFile {
     rules: HashMap<String, GrammarRule>,
     #[pyo3(attribute)]
     imports: Vec<String>,
+    #[pyo3(attribute)]
+    content: String,
 }
 
 #[derive(Debug, FromPyObject, Serialize)]
@@ -154,6 +156,11 @@ fn main() {
     pyo3::prepare_freethreaded_python();
 
     tauri::Builder::default()
+        .setup(|app| {
+            #[cfg(debug_assertions)]
+            app.get_webview_window("main").unwrap().open_devtools();
+            Ok(())
+        })
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         // Make our ParseInfoStore available as Tauri state.
