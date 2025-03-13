@@ -72,7 +72,6 @@ function App() {
 
   // parse info and user grammar variables which are filled after loading a grammar and generating a parser
   const [parseInfo, setParseInfo] = useState("");
-  const [parseTree, setParseTree] = useState();
   const [userGrammar, setUserGrammar] = useState<UserGrammar>();
 
   // expression editor content (other editor is handled separately)
