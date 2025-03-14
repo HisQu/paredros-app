@@ -1,118 +1,8 @@
+import {
+  Node,
+  Edge
+} from '@xyflow/react';
 
-/// constants for parse node testing
-
-import ParseNode from "./interfaces/ParseNode.ts";
-
-const rootNode: ParseNode = {
-    state: 0,
-    current_token: '',
-    lookahead: ['(', '3'],
-    possible_alternatives: [
-        [1, ["start: expr '=' expr ';'"]],
-        [2, ["start: expr ';'"]]
-    ],
-    chosen: 1,
-    input_text: '(3+4)+12;',
-    next_node: null,
-    next_node_verbose: 'Expression',
-    parent: null,
-    alternative_nodes: [],
-    alternative_nodes_verbose: [],
-    id: 'node-0',
-    rule_name: 'start',
-    has_error: false,
-    node_type: 'StartRule'
-};
-
-const additionNode: ParseNode = {
-    state: 1,
-    current_token: '(',
-    lookahead: ['3', '+'],
-    possible_alternatives: [
-        [3, ["expr '+' expr"]],
-        [4, ["expr '*' expr"]],
-        [5, ["expr '(' expr ')'"]],
-        [6, ["ID"]]
-    ],
-    chosen: 0,
-    input_text: '(3+4)+12',
-    next_node: null,
-    next_node_verbose: 'NestedExpression',
-    parent: rootNode,
-    alternative_nodes: [],
-    alternative_nodes_verbose: [],
-    id: 'node-1',
-    rule_name: 'expr',
-    has_error: false,
-    node_type: 'Expression'
-};
-
-const nestedAdditionNode: ParseNode = {
-    state: 2,
-    current_token: '3',
-    lookahead: ['+', '4'],
-    possible_alternatives: [
-        [7, ["expr '+' expr"]],
-        [8, ["NumberLiteral"]]
-    ],
-    chosen: 0,
-    input_text: '3+4',
-    next_node: null,
-    next_node_verbose: 'RightOperand',
-    parent: additionNode,
-    alternative_nodes: [],
-    alternative_nodes_verbose: [],
-    id: 'node-1-1',
-    rule_name: 'expr',
-    has_error: false,
-    node_type: 'Expression'
-};
-
-const numberNode4: ParseNode = {
-    state: 3,
-    current_token: '4',
-    lookahead: [')'],
-    possible_alternatives: [[9, ["NumberLiteral"]]],
-    chosen: 0,
-    input_text: '4',
-    next_node: null,
-    next_node_verbose: null,
-    parent: nestedAdditionNode,
-    alternative_nodes: [],
-    alternative_nodes_verbose: [],
-    id: 'node-1-1-2',
-    rule_name: 'expr',
-    has_error: false,
-    node_type: 'Literal'
-};
-
-const numberNode12: ParseNode = {
-    state: 4,
-    current_token: '12',
-    lookahead: [';'],
-    possible_alternatives: [[10, ["NumberLiteral"]]],
-    chosen: 0,
-    input_text: '12',
-    next_node: null,
-    next_node_verbose: null,
-    parent: additionNode,
-    alternative_nodes: [],
-    alternative_nodes_verbose: [],
-    id: 'node-1-2',
-    rule_name: 'expr',
-    has_error: false,
-    node_type: 'Literal'
-};
-
-// Link nodes together
-rootNode.next_node = additionNode;
-additionNode.next_node = nestedAdditionNode;
-nestedAdditionNode.next_node = numberNode4;
-numberNode4.next_node = numberNode12;
-
-// Complete the circular references
-additionNode.alternative_nodes = [nestedAdditionNode, numberNode12];
-nestedAdditionNode.alternative_nodes = [numberNode4];
 
 const longTreeTemplate = {
   root: {
@@ -130,99 +20,100 @@ const sampleInputText = `<head>Henricus de Bocholdia al. d. Foet cler. Traiect.,
 
 
 const antlr4MonarchLanguage = {
-    // Default token and file extension postfix
-    defaultToken: '',
-    tokenPostfix: '.g4',
-  
-    // ANTLR4 keywords
-    keywords: [
-      'grammar', 'options', 'tokens', 'import', 'fragment',
-      'lexer', 'parser', 'channels', 'mode'
+  // Default token and file extension postfix
+  defaultToken: '',
+  tokenPostfix: '.g4',
+
+  // ANTLR4 keywords
+  keywords: [
+    'grammar', 'options', 'tokens', 'import', 'fragment',
+    'lexer', 'parser', 'channels', 'mode'
+  ],
+
+  // Some common operators and punctuation in ANTLR4 grammars
+  operators: [
+    ';', ':', '::', '=', '->', '|', '.', '!', '?', '*', '+'
+  ],
+
+  // A regex for miscellaneous symbol characters
+  symbols: /[=><!~?:&|+\-*\/\^%]+/,
+
+  // Escapes for string literals
+  escapes: /\\(?:[btnfr"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4})/,
+
+  tokenizer: {
+    root: [
+      // Whitespace and comments
+      { include: '@whitespace' },
+
+      // Keywords
+      [/\b(grammar|options|tokens|import|fragment|lexer|parser|channels|mode)\b/, 'keyword'],
+
+      // Lexer rules: usually written in all-caps or starting with an uppercase letter
+      [/[A-Z][A-Z0-9_]*/, 'type.identifier'],
+
+      // Parser rules: typically begin with a lowercase letter
+      [/[a-z][a-zA-Z0-9_]*/, 'identifier'],
+
+      // Brackets and delimiters
+      [/[{}()\[\]]/, '@brackets'],
+      [/[;:]/, 'delimiter'],
+
+      // String literals (double-quoted and single-quoted)
+      [/"([^"\\]|\\.)*$/, 'string.invalid'], // non-terminated string error
+      [/"/, 'string', '@string."'],
+      [/'([^'\\]|\\.)*$/, 'string.invalid'], // non-terminated string error
+      [/'/, 'string', "@string.'"],
+
+      // Numbers (if needed)
+      [/\d+/, 'number'],
+
+      // Operators and other symbols
+      [/@symbols/, {
+        cases: {
+          '@operators': 'operator',
+          '@default': ''
+        }
+      }],
+
+      // Code blocks (action code) that begin with '{' and can nest
+      [/\{/, { token: 'delimiter.bracket', next: '@action' }],
     ],
-  
-    // Some common operators and punctuation in ANTLR4 grammars
-    operators: [
-      ';', ':', '::', '=', '->', '|', '.', '!', '?', '*', '+'
+
+    // Whitespace and comment handling
+    whitespace: [
+      [/[ \t\r\n]+/, 'white'],
+      [/\/\*.*?\*\//, 'comment'],
+      [/\/\/.*$/, 'comment']
     ],
-  
-    // A regex for miscellaneous symbol characters
-    symbols: /[=><!~?:&|+\-*\/\^%]+/,
-  
-    // Escapes for string literals
-    escapes: /\\(?:[btnfr"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4})/,
-  
-    tokenizer: {
-      root: [
-        // Whitespace and comments
-        { include: '@whitespace' },
-  
-        // Keywords
-        [/\b(grammar|options|tokens|import|fragment|lexer|parser|channels|mode)\b/, 'keyword'],
-  
-        // Lexer rules: usually written in all-caps or starting with an uppercase letter
-        [/[A-Z][A-Z0-9_]*/, 'type.identifier'],
-  
-        // Parser rules: typically begin with a lowercase letter
-        [/[a-z][a-zA-Z0-9_]*/, 'identifier'],
-  
-        // Brackets and delimiters
-        [/[{}()\[\]]/, '@brackets'],
-        [/[;:]/, 'delimiter'],
-  
-        // String literals (double-quoted and single-quoted)
-        [/"([^"\\]|\\.)*$/, 'string.invalid'], // non-terminated string error
-        [/"/, 'string', '@string."'],
-        [/'([^'\\]|\\.)*$/, 'string.invalid'], // non-terminated string error
-        [/'/, 'string', "@string.'"],
-  
-        // Numbers (if needed)
-        [/\d+/, 'number'],
-  
-        // Operators and other symbols
-        [/@symbols/, {
-          cases: {
-            '@operators': 'operator',
-            '@default': ''
-          }
-        }],
-  
-        // Code blocks (action code) that begin with '{' and can nest
-        [/\{/, { token: 'delimiter.bracket', next: '@action' }],
-      ],
-  
-      // Whitespace and comment handling
-      whitespace: [
-        [/[ \t\r\n]+/, 'white'],
-        [/\/\*.*?\*\//, 'comment'],
-        [/\/\/.*$/, 'comment']
-      ],
-  
-      // String state to handle escapes and proper termination
-      string: [
-        [/[^\\"']+/, 'string'],
-        [/@escapes/, 'string.escape'],
-        [/\\./, 'string.escape.invalid'],
-        [/"|'/, {
-          cases: {
-            '$#==$S2': { token: 'string', next: '@pop' },
-            '@default': 'string'
-          }
-        }]
-      ],
-  
-      // Action state to handle nested code blocks in { ... }
-      action: [
-        [/\{/, 'delimiter.bracket', '@push'],
-        [/\}/, 'delimiter.bracket', '@pop'],
-        { include: 'root' }
-      ]
-    }
-  };
-  
+
+    // String state to handle escapes and proper termination
+    string: [
+      [/[^\\"']+/, 'string'],
+      [/@escapes/, 'string.escape'],
+      [/\\./, 'string.escape.invalid'],
+      [/"|'/, {
+        cases: {
+          '$#==$S2': { token: 'string', next: '@pop' },
+          '@default': 'string'
+        }
+      }]
+    ],
+
+    // Action state to handle nested code blocks in { ... }
+    action: [
+      [/\{/, 'delimiter.bracket', '@push'],
+      [/\}/, 'delimiter.bracket', '@pop'],
+      { include: 'root' }
+    ]
+  }
+};
+
 
 
 const grammarFiles = [
-    { name: "Regest.g4", language: "antlr4", content: `grammar MyGrammar;
+  {
+    name: "Regest.g4", language: "antlr4", content: `grammar MyGrammar;
 
 startRule : head sublemma ;
 
@@ -299,7 +190,8 @@ diocAbks : STADTNAMEN ;
 
 // Whitespace
 WS : [ \t\r\n]+ -> skip ;` },
-    { name: "LexerRegeln.g4", language: "antlr4", content: `// Lexer Rules for tags
+  {
+    name: "LexerRegeln.g4", language: "antlr4", content: `// Lexer Rules for tags
 HEADTAG : '<head>' ;
 CLOSEHEADTAG : '</head>' ;
 SUBLEMMATAG : '<sublemma>' ;
@@ -436,16 +328,17 @@ PUNKT : '.' ;
 INT : [0-9]+ ;
 WORD : [a-zA-Z][a-zA-Z0-9]* ;
 SPECIAL : [;:'"\\-_()?!/=+*<>] ;` },
-  ];
+];
 
-  const initialNodes = [
-    { id: '1', position: { x: 0, y: 0 }, data: { label: '1' } },
-    { id: '2', position: { x: 0, y: 100 }, data: { label: '2' } },
-  ];
-  const initialEdges = [{ id: 'e1-2', source: '1', target: '2' }];
+const initialNodes:Node[] = [
+  { id: '1', position: { x: 0, y: 0 }, data: { label: '1' } },
+  { id: '2', position: { x: 0, y: 100 }, data: { label: '2' } },
+];
+const initialEdges:Edge[] = [{ id: 'e1-2', source: '1', target: '2' }];
 
-  const nodeWidth = 172;
+const nodeWidth = 172;
 const nodeHeight = 36;
-  
 
-export {rootNode, additionNode, nodeWidth, nodeHeight, initialNodes, initialEdges, longTreeTemplate, nestedAdditionNode, numberNode12, numberNode4, grammarFiles, sampleInputText, antlr4MonarchLanguage}
+const tempFileName = "temporaryParedrosInput.txt";
+
+export { tempFileName, nodeWidth, nodeHeight, initialNodes, initialEdges, longTreeTemplate, sampleInputText, grammarFiles, antlr4MonarchLanguage }
