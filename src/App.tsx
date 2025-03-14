@@ -8,6 +8,7 @@ import { writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
 import './App.css';
 import Flow from "./components/FlowPlot.tsx";
 import { Button } from './components/ui/button.tsx';
+import { FolderOpenIcon } from "@heroicons/react/24/outline";
 // Interfaces
 import { UserGrammar } from "./interfaces/UserGrammar.ts";
 // Mockup/Helper values
@@ -51,6 +52,7 @@ function App() {
   const handleEditorChange = (value: any) => {
     if (userGrammar) {
       userGrammar.grammar_files[String(activeFileIndex)].content = value;
+      userGrammar.grammar_files[String(activeFileIndex)].changed = true;
     }
   };
 
@@ -159,6 +161,26 @@ function App() {
     return splitPaths[0].slice(0, commonBaseIndex + 1).join('/') + '/';
   }
 
+  async function saveGrammarFiles(): Promise<void> {
+    if (userGrammar) {
+      for (const key in userGrammar.grammar_files) {
+        if (Object.prototype.hasOwnProperty.call(userGrammar.grammar_files, key)) {
+          const file = userGrammar.grammar_files[key];
+          if (file.changed) {
+            try {
+              // Save the file's content to its specified path.
+              await writeTextFile(file.path, file.content);
+              // Mark the file as saved.
+              file.changed = false;
+            } catch (error) {
+              console.error(`Failed to save file at ${file.path}:`, error);
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Convert userGrammar.grammar_files into the item structure expected by react-complex-tree
   function buildItemsFromUserGrammar(userGrammar: UserGrammar | undefined): Record<string, TreeItem> {
     // The keys of userGrammar.grammar_files become child items under the "root"
@@ -197,6 +219,7 @@ function App() {
           <Button color="lime" onClick={load_grammar_file}>Load a grammar file</Button>
           <Button color="indigo" onClick={get_parse_info}>Generate Parser</Button>
           <Button color="indigo" onClick={parse_input}>Parse Input File</Button>
+          <Button color="indigo" onClick={saveGrammarFiles}>Save Grammar Files</Button>
         </div>
 
         <div className="flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
@@ -222,7 +245,18 @@ function App() {
                     <div className="bg-blue-200 p-2 h-full overflow-auto">
                       <UncontrolledTreeEnvironment
                         dataProvider={dataProvider}
-                        getItemTitle={item => item.data}
+                        // @ts-ignore 
+                        getItemTitle={item => {
+                          const file = userGrammar?.grammar_files[item.index];
+                          return (
+                            <>
+                              {item.data}
+                              {file && file.changed && (
+                                <span className="ml-1 inline-block w-2 h-2 bg-blue-500 rounded-full" />
+                              )}
+                            </>
+                          );
+                        }}
                         viewState={{}}
                         onSelectItems={(items) => {
                           if (items.length > 0) {
@@ -259,8 +293,15 @@ function App() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center text-xl pt-10 bg-blue-200 h-full">
-                  Load a grammar first
+                <div className="text-center text-xl bg-blue-200 h-full p-4">
+                  <button
+                    type="button"
+                    onClick={load_grammar_file}
+                    className="relative block w-full rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-gray-400 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-hidden"
+                  >
+                    <FolderOpenIcon className="mx-auto size-12" />
+                    <span className="mt-2 block text-sm font-semibold text-gray-900">Load a grammar file</span>
+                  </button>
                 </div>
               )}
             </Allotment.Pane>

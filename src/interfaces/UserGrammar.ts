@@ -13,6 +13,7 @@ export interface GrammarRule {
     rules: Record<string, GrammarRule>;
     imports: string[];
     content: string;
+    changed: boolean;
   }
   
   export interface UserGrammar {
