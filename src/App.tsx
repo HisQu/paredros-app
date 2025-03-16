@@ -8,12 +8,12 @@ import { writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
 import './App.css';
 import Flow from "./components/FlowPlot.tsx";
 import { Button } from './components/ui/button.tsx';
-import { FolderOpenIcon } from "@heroicons/react/24/outline";
+import { BeakerIcon, FolderOpenIcon } from "@heroicons/react/24/outline";
 // Interfaces
 import { UserGrammar } from "./interfaces/UserGrammar.ts";
 import { ParseTreeNode } from "./interfaces/ParseTreeNode.ts";
 // Mockup/Helper values
-import { tempFileName, antlr4MonarchLanguage, sampleInputText, sampleParseTree } from "./constants";
+import { tempFileName, antlr4MonarchLanguage, sampleInputText } from "./constants";
 // Code Editor
 import Editor from '@monaco-editor/react';
 // Allotment (Resizable Panes)
@@ -23,10 +23,7 @@ import "allotment/dist/style.css";
 import { UncontrolledTreeEnvironment, Tree, StaticTreeDataProvider, TreeItem } from 'react-complex-tree';
 import 'react-complex-tree/lib/style-modern.css';
 // ReactFlow Nodes
-import {
-  Node,
-  Edge
-} from '@xyflow/react';
+import { Edge } from '@xyflow/react';
 // END IMPORTS and constants
 
 const readTemplate = (template: any, data: any = { items: {} }): any => {
@@ -125,12 +122,12 @@ function transformJsonToParseTree(root: any): { nodes: ParseTreeNode[]; edges: E
     nodes.push({
       id: node.id,
       position: { x, y },
-      data: { 
+      data: {
         nodeType: node.node_type,
         ruleName: node.ruleName,
         token: node.token,
         traceSteps: node.trace_steps
-       }
+      }
     });
 
     // If there is a parent, create an edge from the parent to the current node.
@@ -204,10 +201,17 @@ function App() {
     const _p = await path.join(await path.tempDir(), tempFileName);
 
     // call parse input
-    await invoke("parse_input", {
+    const parse_input_result = await invoke("parse_input", {
       id: parseInfo,
       input: _p
-    })
+    });
+
+    // DEBUG
+    console.log("parse_input_result", parse_input_result);
+
+    if (parse_input_result === "Parsed successfully") {
+      get_json_parse_tree();
+    }
   }
 
   // instead of calling immediately
@@ -223,6 +227,12 @@ function App() {
       get_user_grammar();
     }
   }, [parseInfo]);
+
+  useEffect(() => {
+    if (userGrammar) {
+      setActiveFileIndex(Object.keys(userGrammar.grammar_files)[0]);
+    }
+  }, [userGrammar])
 
   const treeItemsFromGrammar = useMemo(() => buildItemsFromUserGrammar(userGrammar), [userGrammar]);
   // Create the data provider for the tree, which also handles item updates
@@ -269,10 +279,31 @@ function App() {
     }
   }
 
-  const {nodes, edges} = transformJsonToParseTree(sampleParseTree);
+  async function step_forwards() {
+    // DEBUG
+    console.log("Step Forwards")
+    await invoke("step_in_parse_tree", { id: parseInfo, step: 1 })
+    await get_json_parse_tree();
+  }
+
+  async function step_backwards() {
+    // DEBUG
+    console.log("Step Backwards")
+    await invoke("step_in_parse_tree", { id: parseInfo, step: -1 })
+    await get_json_parse_tree();
+  }
+
+  async function get_json_parse_tree() {
+    const {nodes: _n, edges: _e} = transformJsonToParseTree(await invoke("get_json_parse_tree", { id: parseInfo }))
+    setNodes(_n);
+    setEdges(_e);
+  }
+
+  const [nodes, setNodes] = useState<ParseTreeNode[]>();
+  const [edges, setEdges] = useState<Edge[]>();
 
   return (
-    <div className="bg-white text-zinc-900" style={{ height: "calc(100vh - 3rem)" }}>
+    <div className="bg-white text-zinc-900">
       {/* Header */}
       <header className="p-4 border-b border-zinc-200 grid grid-cols-1 gap-2">
         <div className="flex gap-2 w-full h-10">
@@ -281,105 +312,149 @@ function App() {
           <Button color="indigo" onClick={parse_input}>Parse Input File</Button>
           <Button color="indigo" onClick={saveGrammarFiles}>Save Grammar Files</Button>
         </div>
-
-        <div className="flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
-          Henricus de ●<span className="underline underline-offset-4 decoration-violet-200 font-black hover:decoration-4">Bocholdia</span>
-        </div>
       </header>
-      <Allotment vertical={true}>
-        {/* Augmented Parse Tree */}
-        <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
-          <Flow node={nodes} edge={edges} />
-        </Allotment.Pane>
-
-        {/* Editor */}
-        <Allotment.Pane minSize={100} className="h-96 w-full">
-          <Allotment vertical={false}>
-            <Allotment.Pane minSize={300} className="h-md bg-blue-400">
-              <h2 className="text-2xl p-2 text-gray-100">Grammar Editor</h2>
-              {/* Grid */}
-              {userGrammar ? (
-                <div className="flex space-x-4">
-                  <div className="w-1/4">
-                    {/* File Tree */}
-                    <div className="bg-blue-200 p-2 h-full overflow-auto">
-                      <UncontrolledTreeEnvironment
-                        dataProvider={dataProvider}
-                        // @ts-ignore 
-                        getItemTitle={item => {
-                          const file = userGrammar?.grammar_files[item.index];
-                          return (
-                            <>
-                              {item.data}
-                              {file && file.changed && (
-                                <span className="ml-1 inline-block w-2 h-2 bg-blue-500 rounded-full" />
-                              )}
-                            </>
-                          );
-                        }}
-                        viewState={{}}
-                        onSelectItems={(items) => {
-                          if (items.length > 0) {
-                            const selectedFile = userGrammar.grammar_files[items[0]];
-                            if (selectedFile) {
-                              setActiveFileIndex(String(items[0]));
-                            }
-                          }
-                        }}
-                      >
-                        <div className="text-gray-900 transition duration-200">
-                          <Tree treeId="tree-1" rootItem="root" treeLabel="Tree Example" />
-                        </div>
-                      </UncontrolledTreeEnvironment>
-                    </div>
-                  </div>
-                  {/* Grammar Editor */}
-                  <div className="w-3/4">
-                    <Editor
-                      className="w-full"
-                      height="82vh"
-                      language={"antlr4"}
-                      value={userGrammar.grammar_files[String(activeFileIndex)]?.content ?? ""}
-                      onChange={handleEditorChange}
-                      beforeMount={(monaco) => {
-                        // Register the custom ANTLR4 language with Monaco
-                        monaco.languages.register({ id: 'antlr4' });
-                        monaco.languages.setMonarchTokensProvider('antlr4', antlr4MonarchLanguage);
-                      }}
-                      options={{
-                        wordWrap: "on",
-                      }}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center text-xl bg-blue-200 h-full p-4">
+      {userGrammar ? <div className="w-screen h-screen">
+        <div className="flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
+          
+        </div>
+        <Allotment vertical={true}>
+          {/* Augmented Parse Tree */}
+          <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
+            {(nodes && edges) ? (<Flow node={nodes} edge={edges} step_backwards={step_backwards} step_forwards={step_forwards} />) : (
+              (
+                <div className="text-center text-xl bg-orange-100 h-full p-4">
                   <button
                     type="button"
-                    onClick={load_grammar_file}
-                    className="relative block w-full rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-gray-400 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-hidden"
+                    onClick={parse_input}
+                    className="relative block w-full h-full rounded-lg border-2 border-dashed border-gray-300 p-48 text-center hover:border-gray-400 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-hidden"
                   >
-                    <FolderOpenIcon className="mx-auto size-12" />
-                    <span className="mt-2 block text-sm font-semibold text-gray-900">Load a grammar file</span>
+                    <BeakerIcon className="mx-auto size-12" />
+                    <span className="mt-2 block font-semibold text-gray-900">
+                      The next step is to <span className="underline decoration-4 underline-offset-2 decoration-dotted decoration-blue-700">parse the expression</span>
+                    </span>
                   </button>
                 </div>
-              )}
-            </Allotment.Pane>
-            <Allotment.Pane minSize={200} className="h-md bg-violet-500">
-              <div className="p-2 border-b border-zinc-200">
-                <h2 className="text-2xl text-white">Expression</h2>
-              </div>
-              <Editor height="90vh"
-                defaultLanguage="plain"
-                options={{
-                  wordWrap: "on",
-                }}
-                onChange={(value) => setExpressionContent(value || "")}
-                defaultValue={sampleInputText} />
-            </Allotment.Pane>
-          </Allotment>
-        </Allotment.Pane>
-      </Allotment>
+              )
+            )}
+          </Allotment.Pane>
+
+          {/* Editor */}
+          <Allotment.Pane minSize={100} className="h-96 w-full">
+            <Allotment vertical={false}>
+              <Allotment.Pane minSize={300} className="h-md bg-blue-400">
+                <h2 className="text-2xl p-2 text-gray-100">Grammar Editor</h2>
+                {/* Grid */}
+                {userGrammar ? (
+                  <div className="flex space-x-4">
+                    <div className="w-1/4">
+                      {/* File Tree */}
+                      <div className="bg-blue-200 p-2 h-full overflow-auto">
+                        <UncontrolledTreeEnvironment
+                          dataProvider={dataProvider}
+                          // @ts-ignore 
+                          getItemTitle={item => {
+                            const file = userGrammar?.grammar_files[item.index];
+                            return (
+                              <>
+                                {item.data}
+                                {file && file.changed && (
+                                  <span className="ml-1 inline-block w-2 h-2 bg-blue-500 rounded-full" />
+                                )}
+                              </>
+                            );
+                          }}
+                          viewState={{}}
+                          onSelectItems={(items) => {
+                            if (items.length > 0) {
+                              const selectedFile = userGrammar.grammar_files[items[0]];
+                              if (selectedFile) {
+                                setActiveFileIndex(String(items[0]));
+                              }
+                            }
+                          }}
+                        >
+                          <div className="text-gray-900 transition duration-200">
+                            <Tree treeId="tree-1" rootItem="root" treeLabel="Tree Example" />
+                          </div>
+                        </UncontrolledTreeEnvironment>
+                      </div>
+                    </div>
+                    {/* Grammar Editor */}
+                    <div className="w-3/4">
+                      <Editor
+                        className="w-full"
+                        height="82vh"
+                        language={"antlr4"}
+                        value={userGrammar.grammar_files[String(activeFileIndex)]?.content ?? ""}
+                        onChange={handleEditorChange}
+                        beforeMount={(monaco) => {
+                          // Register the custom ANTLR4 language with Monaco
+                          monaco.languages.register({ id: 'antlr4' });
+                          monaco.languages.setMonarchTokensProvider('antlr4', antlr4MonarchLanguage);
+                        }}
+                        options={{
+                          wordWrap: "on",
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center text-xl bg-blue-200 h-full p-4">
+                    <button
+                      type="button"
+                      onClick={load_grammar_file}
+                      className="relative block w-full rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-gray-400 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-hidden"
+                    >
+                      <FolderOpenIcon className="mx-auto size-12" />
+                      <span className="mt-2 block text-sm font-semibold text-gray-900">Load a grammar file</span>
+                    </button>
+                  </div>
+                )}
+              </Allotment.Pane>
+              <Allotment.Pane minSize={200} className="h-md bg-violet-500">
+                <div className="p-2 border-b border-zinc-200">
+                  <h2 className="text-2xl text-white">Expression</h2>
+                </div>
+                <Editor height="90vh"
+                  defaultLanguage="plain"
+                  options={{
+                    wordWrap: "on",
+                  }}
+                  onChange={(value) => setExpressionContent(value || "")}
+                  defaultValue={sampleInputText} />
+              </Allotment.Pane>
+            </Allotment>
+          </Allotment.Pane>
+        </Allotment>
+      </div> : <div className="text-center mt-12">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className="mx-auto size-12 text-gray-400"
+        >
+          <path
+            d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <h3 className="mt-2 text-sm font-semibold text-gray-900">No grammar loaded</h3>
+        <p className="mt-1 text-sm text-gray-500">Get started by loading a grammar.</p>
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={load_grammar_file}
+            className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          >
+            <FolderOpenIcon aria-hidden="true" className="mr-1.5 -ml-0.5 size-5" />
+            Open Grammar file
+          </button>
+        </div>
+      </div>}
     </div>
   );
 }

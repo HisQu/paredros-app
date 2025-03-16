@@ -70,9 +70,13 @@ const getLayoutedElements = (
 const Flow = ({
   node: paramNodes,
   edge: paramEdges,
+  step_backwards,
+  step_forwards
 }: {
   node: ParseTreeNode[];
   edge: Edge[];
+  step_forwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  step_backwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) => {
   const { nodes: initNodes, edges: initEdges } = getLayoutedElements(
     paramNodes,
@@ -130,8 +134,8 @@ const Flow = ({
           vertical layout
         </Button>
         <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
-        <Button color="green">Step Back</Button>
-        <Button color="green">Step Forward</Button>
+        <Button color="green" onClick={step_backwards}>Step Back</Button>
+        <Button color="green" onClick={step_forwards}>Step Forward</Button>
       </Panel>
       <Controls />
       <MiniMap />

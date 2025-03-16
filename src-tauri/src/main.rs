@@ -151,6 +151,37 @@ fn get_user_grammar(id: usize, store: State<ParseInfoStore>) -> Result<UserGramm
     })
 }
 
+#[tauri::command]
+fn get_json_parse_tree(id: usize, store: State<ParseInfoStore>) -> Result<serde_json::Value, String> {
+    let nodes = store.nodes.lock().unwrap();
+    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
+    
+    Python::with_gil(|py| {
+        // Get the `get_json` attribute from the Python object.
+        let get_json_method = parse_info.getattr(py, "get_json").map_err(|e| e.to_string())?;
+        // Call the method with no arguments.
+        let json_py = get_json_method.call0(py).map_err(|e| e.to_string())?;
+        // Extract the returned string.
+        let json_str: String = json_py.extract(py).map_err(|e| e.to_string())?;
+        // Parse the JSON string into a serde_json::Value.
+        serde_json::from_str(&json_str).map_err(|e| e.to_string())
+    })
+}
+
+#[tauri::command]
+fn step_in_parse_tree(id: usize, step: i32, store: State<ParseInfoStore>) -> Result<String, String> {
+    let nodes = store.nodes.lock().unwrap();
+    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
+
+    Python::with_gil(|py| {
+        let func = parse_info.getattr(py, "step_forward").map_err(|e| e.to_string())?;
+        
+        func.call1(py, (step,)).map_err(|e| e.to_string())?;
+
+        Ok("Stepped successfully".to_string())
+    })
+}
+
 fn main() {
     // Prepare Python for multithreaded use.
     pyo3::prepare_freethreaded_python();
@@ -170,7 +201,9 @@ fn main() {
             get_parse_info,
             parse_input,
             get_parse_tree,
-            get_user_grammar
+            get_user_grammar,
+            step_in_parse_tree,
+            get_json_parse_tree
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
