@@ -67,6 +67,7 @@ fn get_parse_info(grammar: String, store: State<ParseInfoStore>) -> Result<usize
     })
 }
 
+/// Call the parse_input method on a stored ParseInformation instance
 #[tauri::command]
 fn parse_input(
     id: usize,
@@ -99,6 +100,7 @@ fn get_parse_tree(id: usize, store: State<ParseInfoStore>) -> Result<String, Str
     })
 }
 
+/// This class mirrors the Python class
 #[derive(Debug, FromPyObject, Serialize)]
 struct GrammarRule {
     #[pyo3(attribute)]
@@ -115,6 +117,7 @@ struct GrammarRule {
     end_pos: i32,
 }
 
+/// This class mirrors the Python class
 #[derive(Debug, FromPyObject, Serialize)]
 struct GrammarFile {
     #[pyo3(attribute)]
@@ -129,6 +132,7 @@ struct GrammarFile {
     content: String,
 }
 
+/// This class mirrors the Python class
 #[derive(Debug, FromPyObject, Serialize)]
 struct UserGrammar {
     #[pyo3(attribute("grammar_files"))]
@@ -137,6 +141,7 @@ struct UserGrammar {
     processed_files: HashSet<String>,
 }
 
+/// Gets the property "grammar" from a ParseInformation instance
 #[tauri::command]
 fn get_user_grammar(id: usize, store: State<ParseInfoStore>) -> Result<UserGrammar, String> {
     let nodes = store.nodes.lock().unwrap();
@@ -151,6 +156,7 @@ fn get_user_grammar(id: usize, store: State<ParseInfoStore>) -> Result<UserGramm
     })
 }
 
+/// Gets a JSON representation of the current (meaning partial) ParseTree
 #[tauri::command]
 fn get_json_parse_tree(id: usize, store: State<ParseInfoStore>) -> Result<serde_json::Value, String> {
     let nodes = store.nodes.lock().unwrap();
@@ -168,6 +174,7 @@ fn get_json_parse_tree(id: usize, store: State<ParseInfoStore>) -> Result<serde_
     })
 }
 
+/// Manipulates the current step in the ParseInformation instance's ParseTreeExplorer instance
 #[tauri::command]
 fn step_in_parse_tree(id: usize, step: i32, store: State<ParseInfoStore>) -> Result<String, String> {
     let nodes = store.nodes.lock().unwrap();
@@ -196,6 +203,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         // Make our ParseInfoStore available as Tauri state.
         .manage(ParseInfoStore::default())
+        // expose these commands to typescript
         .invoke_handler(tauri::generate_handler![
             greet,
             get_parse_info,
