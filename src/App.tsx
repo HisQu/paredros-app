@@ -11,8 +11,24 @@ import { Button } from './components/ui/button.tsx';
 import { FolderOpenIcon } from "@heroicons/react/24/outline";
 // Interfaces
 import { UserGrammar } from "./interfaces/UserGrammar.ts";
+import { ParseTreeNode } from "./interfaces/ParseTreeNode.ts";
 // Mockup/Helper values
-import { tempFileName, antlr4MonarchLanguage, sampleInputText, initialEdges, initialNodes } from "./constants";
+import { tempFileName, antlr4MonarchLanguage, sampleInputText, sampleParseTree } from "./constants";
+// Code Editor
+import Editor from '@monaco-editor/react';
+// Allotment (Resizable Panes)
+import { Allotment } from "allotment";
+import "allotment/dist/style.css";
+// React Complex Tree
+import { UncontrolledTreeEnvironment, Tree, StaticTreeDataProvider, TreeItem } from 'react-complex-tree';
+import 'react-complex-tree/lib/style-modern.css';
+// ReactFlow Nodes
+import {
+  Node,
+  Edge
+} from '@xyflow/react';
+// END IMPORTS and constants
+
 const readTemplate = (template: any, data: any = { items: {} }): any => {
   for (const [key, value] of Object.entries(template)) {
     // eslint-disable-next-line no-param-reassign
@@ -34,15 +50,111 @@ const readTemplate = (template: any, data: any = { items: {} }): any => {
   }
   return data;
 };
-// Code Editor
-import Editor from '@monaco-editor/react';
-// Allotment (Resizable Panes)
-import { Allotment } from "allotment";
-import "allotment/dist/style.css";
-// React Complex Tree
-import { UncontrolledTreeEnvironment, Tree, StaticTreeDataProvider, TreeItem } from 'react-complex-tree';
-import 'react-complex-tree/lib/style-modern.css';
-// END IMPORTS and constants
+
+function getCommonBasename(paths: string[]): string {
+  if (paths.length === 0) {
+    return ""; // Return an empty string if there are no paths
+  }
+
+  // Normalize paths and split into components
+  const splitPaths = paths.map(path => path.split('/'));
+
+  // Find the common base path
+  let minLength = Math.min(...splitPaths.map(p => p.length));
+  let commonBaseIndex = 0;
+
+  for (let i = 0; i < minLength; i++) {
+    const segment = splitPaths[0][i];
+    if (!splitPaths.every(p => p[i] === segment)) {
+      break;
+    }
+    commonBaseIndex = i;
+  }
+
+  // Join the common base path into a string
+  return splitPaths[0].slice(0, commonBaseIndex + 1).join('/') + '/';
+}
+
+// Convert userGrammar.grammar_files into the item structure expected by react-complex-tree
+function buildItemsFromUserGrammar(userGrammar: UserGrammar | undefined): Record<string, TreeItem> {
+  // The keys of userGrammar.grammar_files become child items under the "root"
+  const fileNames = Object.keys(userGrammar?.grammar_files ?? []);
+
+  const commonBasename = getCommonBasename(fileNames);
+
+  // The "root" item
+  const rootItem: TreeItem = {
+    index: 'root',
+    data: 'Root Node',
+    children: fileNames
+  };
+
+  // Each file becomes its own item
+  const fileItems = fileNames.reduce<Record<string, TreeItem>>((acc, fileName) => {
+    acc[fileName] = {
+      index: fileName,
+      data: fileName.replace(commonBasename, ''),
+      children: []
+    };
+    return acc;
+  }, {});
+
+  return {
+    root: rootItem,
+    ...fileItems
+  };
+}
+
+function transformJsonToParseTree(root: any): { nodes: Node[]; edges: Edge[] } {
+  const nodes: ParseTreeNode[] = [];
+  const edges: Edge[] = [];
+
+  /**
+   * Recursively traverses the JSON tree to generate nodes and edges.
+   * @param node - The current JSON node.
+   * @param parent - The parent JSON node (or null for the root).
+   * @param depth - The current depth (used to compute the x position).
+   * @param index - The index among siblings (used to compute the y position).
+   */
+  function traverse(node: any, parent: any | null, depth: number, index: number): void {
+    // Compute a simple layout: x based on depth, y based on sibling index.
+    const x = depth * 200;
+    const y = index * 100;
+
+    // Create a node object and add it to the nodes list.
+    nodes.push({
+      id: node.id,
+      position: { x, y },
+      data: { 
+        nodeType: node.node_type,
+        ruleName: node.ruleName,
+        token: node.token,
+        traceSteps: node.trace_steps
+       }
+    });
+
+    // If there is a parent, create an edge from the parent to the current node.
+    if (parent) {
+      edges.push({
+        id: `e${parent.id}-${node.id}`,
+        source: parent.id,
+        target: node.id
+      });
+    }
+
+    // Recursively process children (if any).
+    if (node.children && Array.isArray(node.children)) {
+      node.children.forEach((child: any, childIndex: number) => {
+        traverse(child, node, depth + 1, childIndex);
+      });
+    }
+  }
+
+  // Start the recursion with the root node.
+  traverse(root, null, 0, 0);
+
+  return { nodes, edges };
+}
 
 function App() {
   // Initial file: a Grammar file with default content.
@@ -137,30 +249,6 @@ function App() {
     setUserGrammar(_g);
   }
 
-  function getCommonBasename(paths: string[]): string {
-    if (paths.length === 0) {
-      return ""; // Return an empty string if there are no paths
-    }
-
-    // Normalize paths and split into components
-    const splitPaths = paths.map(path => path.split('/'));
-
-    // Find the common base path
-    let minLength = Math.min(...splitPaths.map(p => p.length));
-    let commonBaseIndex = 0;
-
-    for (let i = 0; i < minLength; i++) {
-      const segment = splitPaths[0][i];
-      if (!splitPaths.every(p => p[i] === segment)) {
-        break;
-      }
-      commonBaseIndex = i;
-    }
-
-    // Join the common base path into a string
-    return splitPaths[0].slice(0, commonBaseIndex + 1).join('/') + '/';
-  }
-
   async function saveGrammarFiles(): Promise<void> {
     if (userGrammar) {
       for (const key in userGrammar.grammar_files) {
@@ -181,35 +269,7 @@ function App() {
     }
   }
 
-  // Convert userGrammar.grammar_files into the item structure expected by react-complex-tree
-  function buildItemsFromUserGrammar(userGrammar: UserGrammar | undefined): Record<string, TreeItem> {
-    // The keys of userGrammar.grammar_files become child items under the "root"
-    const fileNames = Object.keys(userGrammar?.grammar_files ?? []);
-
-    const commonBasename = getCommonBasename(fileNames);
-
-    // The "root" item
-    const rootItem: TreeItem = {
-      index: 'root',
-      data: 'Root Node',
-      children: fileNames
-    };
-
-    // Each file becomes its own item
-    const fileItems = fileNames.reduce<Record<string, TreeItem>>((acc, fileName) => {
-      acc[fileName] = {
-        index: fileName,
-        data: fileName.replace(commonBasename, ''),
-        children: []
-      };
-      return acc;
-    }, {});
-
-    return {
-      root: rootItem,
-      ...fileItems
-    };
-  }
+  const {nodes, edges} = transformJsonToParseTree(sampleParseTree);
 
   return (
     <div className="bg-white text-zinc-900" style={{ height: "calc(100vh - 3rem)" }}>
@@ -229,7 +289,7 @@ function App() {
       <Allotment vertical={true}>
         {/* Augmented Parse Tree */}
         <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
-          <Flow node={initialNodes} edge={initialEdges} />
+          <Flow node={nodes} edge={edges} />
         </Allotment.Pane>
 
         {/* Editor */}

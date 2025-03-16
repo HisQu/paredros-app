@@ -1,4 +1,4 @@
-import {useCallback} from "react";
+import { useCallback, useEffect } from "react";
 // React Flow
 import {
   ReactFlow,
@@ -12,79 +12,76 @@ import {
   Panel,
   ConnectionLineType,
   Node,
-  Edge
-} from '@xyflow/react';
-import dagre from '@dagrejs/dagre';
-import '@xyflow/react/dist/style.css';
+  Edge,
+  Position,
+} from "@xyflow/react";
+import dagre from "@dagrejs/dagre";
+import "@xyflow/react/dist/style.css";
 
-import { Button } from '../components/ui/button.tsx';
-
-import { nodeHeight, nodeWidth} from "../constants";
+import { Button } from "../components/ui/button.tsx";
+import { nodeHeight, nodeWidth } from "../constants";
 
 const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
-const getLayoutedElements = (nodes: any, edges: any, direction = 'TB') => {
-  const isHorizontal = direction === 'LR';
+const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = "TB") => {
+  const isHorizontal = direction === "LR";
   dagreGraph.setGraph({ rankdir: direction });
 
-  nodes.forEach((node: any) => {
+  nodes.forEach((node) => {
     dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
   });
 
-  edges.forEach((edge: any) => {
+  edges.forEach((edge) => {
     dagreGraph.setEdge(edge.source, edge.target);
   });
 
   dagre.layout(dagreGraph);
 
-  const newNodes = nodes.map((node: any) => {
+  const newNodes = nodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
-    const newNode = {
+    return {
       ...node,
-      targetPosition: isHorizontal ? 'left' : 'top',
-      sourcePosition: isHorizontal ? 'right' : 'bottom',
-      // We are shifting the dagre node position (anchor=center center) to the top left
-      // so it matches the React Flow node anchor point (top left).
+      targetPosition: isHorizontal ? ("left" as Position) : ("top" as Position),
+      sourcePosition: isHorizontal ? ("right" as Position) : ("bottom" as Position),
+      // Adjust the position to account for the React Flow node anchor (top-left)
       position: {
         x: nodeWithPosition.x - nodeWidth / 2,
         y: nodeWithPosition.y - nodeHeight / 2,
       },
     };
-
-    return newNode;
   });
 
   return { nodes: newNodes, edges };
 };
 
-const Flow = ({node: paramNodes, edge: paramEdges} : {node: Node[], edge: Edge[]}) => {
-  const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-    paramNodes,
-    paramEdges,
-  );
+const Flow = ({ node: paramNodes, edge: paramEdges }: { node: Node[]; edge: Edge[] }) => {
+  const { nodes: initNodes, edges: initEdges } = getLayoutedElements(paramNodes, paramEdges);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges);
+
+  // Update layout when the input nodes or edges change
+  useEffect(() => {
+    const { nodes: newLayoutNodes, edges: newLayoutEdges } = getLayoutedElements(paramNodes, paramEdges);
+    setNodes(newLayoutNodes);
+    setEdges(newLayoutEdges);
+  }, [paramNodes, paramEdges, setNodes, setEdges]);
 
   const onConnect = useCallback(
     (params: any) =>
       setEdges((eds) =>
-        addEdge(
-          { ...params, type: ConnectionLineType.SmoothStep, animated: true },
-          eds,
-        ),
+        addEdge({ ...params, type: ConnectionLineType.SmoothStep, animated: true }, eds)
       ),
-    [],
+    [setEdges]
   );
+
   const onLayout = useCallback(
     (direction: any) => {
-      const { nodes: layoutedNodes, edges: layoutedEdges } =
-        getLayoutedElements(nodes, edges, direction);
-
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, direction);
       setNodes([...layoutedNodes]);
       setEdges([...layoutedEdges]);
     },
-    [nodes, edges],
+    [nodes, edges, setNodes, setEdges]
   );
 
   return (
@@ -99,8 +96,10 @@ const Flow = ({node: paramNodes, edge: paramEdges} : {node: Node[], edge: Edge[]
       style={{ backgroundColor: "#F7F9FB" }}
     >
       <Panel position="top-right" className="grid grid-cols-2 gap-4">
-        <Button onClick={() => onLayout('TB')} className="mr-2">vertical layout</Button>
-        <Button onClick={() => onLayout('LR')}>horizontal layout</Button>
+        <Button onClick={() => onLayout("TB")} className="mr-2">
+          vertical layout
+        </Button>
+        <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
         <Button color="green">Step Back</Button>
         <Button color="green">Step Forward</Button>
       </Panel>
