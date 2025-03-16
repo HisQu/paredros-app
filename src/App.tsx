@@ -124,7 +124,7 @@ function transformJsonToParseTree(root: any): { nodes: ParseTreeNode[]; edges: E
       position: { x, y },
       data: {
         nodeType: node.node_type,
-        ruleName: node.ruleName,
+        ruleName: node.rule_name,
         token: node.token,
         traceSteps: node.trace_steps
       }
@@ -190,7 +190,12 @@ function App() {
 
   async function get_parse_info() {
     // DEBUG
-    console.log("get_parse_info")
+    console.log("get_parse_info");
+
+    // reset the parse tree
+    setNodes(undefined);
+    setEdges(undefined);
+
     setParseInfo(await invoke("get_parse_info", { grammar: grammarFileLocation }));
   }
 
@@ -282,14 +287,14 @@ function App() {
   async function step_forwards() {
     // DEBUG
     console.log("Step Forwards")
-    await invoke("step_in_parse_tree", { id: parseInfo, step: 1 })
+    await invoke("step_forwards", { id: parseInfo, step: 1 })
     await get_json_parse_tree();
   }
 
   async function step_backwards() {
     // DEBUG
     console.log("Step Backwards")
-    await invoke("step_in_parse_tree", { id: parseInfo, step: -1 })
+    await invoke("step_backwards", { id: parseInfo })
     await get_json_parse_tree();
   }
 
@@ -304,13 +309,17 @@ function App() {
 
   return (
     <div className="bg-white text-zinc-900">
+      <span className="bg-blue-300 bg-violet-300"></span>
       {/* Header */}
       <header className="p-4 border-b border-zinc-200 grid grid-cols-1 gap-2">
-        <div className="flex gap-2 w-full h-10">
+        <div className="flex gap-2 w-full h-10 items-center">
+          <h1 className="text-2xl font-bold text-middle">πάρεδρος</h1>
+          <span className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2">
+            Grammar debugging environment
+          </span>
           <Button color="lime" onClick={load_grammar_file}>Load a grammar file</Button>
-          <Button color="indigo" onClick={get_parse_info}>Generate Parser</Button>
-          <Button color="indigo" onClick={parse_input}>Parse Input File</Button>
-          <Button color="indigo" onClick={saveGrammarFiles}>Save Grammar Files</Button>
+          <Button color="indigo" onClick={get_parse_info}>Generate Parser (and save grammar files)</Button>
+          <Button color="amber" onClick={parse_input}>Parse Input File</Button>
         </div>
       </header>
       {userGrammar ? <div className="w-screen h-screen">

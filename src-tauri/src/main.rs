@@ -102,6 +102,18 @@ fn get_parse_tree(id: usize, store: State<ParseInfoStore>) -> Result<String, Str
 
 /// This class mirrors the Python class
 #[derive(Debug, FromPyObject, Serialize)]
+struct ParseTreeNode {
+    #[pyo3(attribute("id"))]
+    id: String,
+    #[pyo3(attribute("nodeType"))]
+    node_type: String,
+    #[pyo3(attribute("children"))]
+    children: Vec<ParseTreeNode>, 
+}
+
+
+/// This class mirrors the Python class
+#[derive(Debug, FromPyObject, Serialize)]
 struct GrammarRule {
     #[pyo3(attribute)]
     name: String,
@@ -176,7 +188,7 @@ fn get_json_parse_tree(id: usize, store: State<ParseInfoStore>) -> Result<serde_
 
 /// Manipulates the current step in the ParseInformation instance's ParseTreeExplorer instance
 #[tauri::command]
-fn step_in_parse_tree(id: usize, step: i32, store: State<ParseInfoStore>) -> Result<String, String> {
+fn step_forwards(id: usize, step: usize, store: State<ParseInfoStore>) -> Result<String, String> {
     let nodes = store.nodes.lock().unwrap();
     let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
 
@@ -184,6 +196,20 @@ fn step_in_parse_tree(id: usize, step: i32, store: State<ParseInfoStore>) -> Res
         let func = parse_info.getattr(py, "step_forward").map_err(|e| e.to_string())?;
         
         func.call1(py, (step,)).map_err(|e| e.to_string())?;
+
+        Ok("Stepped successfully".to_string())
+    })
+}
+
+#[tauri::command]
+fn step_backwards(id: usize, store: State<ParseInfoStore>) -> Result<String, String> {
+    let nodes = store.nodes.lock().unwrap();
+    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
+
+    Python::with_gil(|py| {
+        let func = parse_info.getattr(py, "step_backwards").map_err(|e| e.to_string())?;
+        
+        func.call0(py).map_err(|e| e.to_string())?;
 
         Ok("Stepped successfully".to_string())
     })
@@ -210,7 +236,8 @@ fn main() {
             parse_input,
             get_parse_tree,
             get_user_grammar,
-            step_in_parse_tree,
+            step_forwards,
+            step_backwards,
             get_json_parse_tree
         ])
         .run(tauri::generate_context!())

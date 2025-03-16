@@ -4,11 +4,12 @@ import { ParseTreeNode, ParseTreeNodeData } from '../interfaces/ParseTreeNode';
 import { nodeWidth, nodeHeight } from '../constants';
 
 const handleSize = 8; // in pixels
-const handleOffset = -(handleSize / 2); // -4px, so that the handle’s center is on the border
+const handleOffset = -4; // -4px, so that the handle's center is on the border
 
 const ParseTreeNodeComponent = ({
   data,
   targetPosition,
+  id,
 }: NodeProps<ParseTreeNode>) => {
   // If targetPosition is 'left', assume horizontal layout; otherwise, vertical.
   const isHorizontal = targetPosition === 'left';
@@ -16,15 +17,27 @@ const ParseTreeNodeComponent = ({
   const containerStyle: React.CSSProperties = {
     width: nodeWidth,   // fixed width
     height: nodeHeight, // fixed height
+    cursor: data.hasChildren ? 'pointer' : 'default',
+    position: 'relative',
   };
 
   function NodeContentComponent({data} : {data: ParseTreeNodeData}) {
     const isRule = !!data.ruleName;
-    const background = isRule ? 'bg-blue-400' : 'bg-violet-400'
 
-    return <div className={`w-full h-full flex flex-col font-black text-white justify-center ${background}`}>
+    const shade = data.isExpanded ? '400' : '300';
+    const background = isRule ? `bg-blue-${shade}` : `bg-violet-400`;
+    
+    // Add expand/collapse indicator if node has children
+    const expandIndicator = data.hasChildren 
+      ? (data.isExpanded ? "[-]" : "[+]") 
+      : "";
+
+    return <div 
+      className={`w-full h-full flex flex-col font-black text-white justify-center ${background}`}
+      onClick={() => data.hasChildren && data.toggleNode && data.toggleNode(id)}
+    >
         <span>
-          {data.ruleName || data.token}
+          {data.ruleName || data.token} {expandIndicator}
         </span>
     </div>
   }

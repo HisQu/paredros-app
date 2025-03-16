@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 // React Flow
 import {
   ReactFlow,
@@ -24,25 +24,105 @@ import ParseTreeNodeComponent from "../components/ParseTreeNodeComponent";
 
 const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
+// Helper function to build a node tree map for easy access
+const buildNodeTreeMap = (nodes: ParseTreeNode[], edges: Edge[]) => {
+  const nodeMap = new Map<string, { node: ParseTreeNode, children: string[] }>();
+  
+  // Initialize all nodes with empty children arrays
+  nodes.forEach(node => {
+    nodeMap.set(node.id, { node, children: [] });
+  });
+  
+  // Fill in children based on edges
+  edges.forEach(edge => {
+    const sourceNode = nodeMap.get(edge.source);
+    if (sourceNode) {
+      sourceNode.children.push(edge.target);
+    }
+  });
+  
+  return nodeMap;
+};
+
+// Function to filter nodes based on expanded states
+const getVisibleNodes = (
+  allNodes: ParseTreeNode[],
+  edges: Edge[],
+  expandedNodes: Set<string>
+) => {
+  const nodeMap = buildNodeTreeMap(allNodes, edges);
+  const visibleNodeIds = new Set<string>();
+  
+  // Helper function to recursively check if a node should be visible
+  const processNode = (nodeId: string, isAncestorExpanded: boolean) => {
+    const nodeInfo = nodeMap.get(nodeId);
+    if (!nodeInfo) return;
+    
+    // A node is visible if all its ancestors are expanded
+    if (isAncestorExpanded) {
+      visibleNodeIds.add(nodeId);
+      
+      // Process children only if this node is expanded
+      if (expandedNodes.has(nodeId)) {
+        nodeInfo.children.forEach(childId => {
+          processNode(childId, true);
+        });
+      }
+    }
+  };
+  
+  // Start with root nodes (nodes with no incoming edges)
+  const rootNodeIds = allNodes
+    .filter(node => !edges.some(edge => edge.target === node.id))
+    .map(node => node.id);
+  
+  rootNodeIds.forEach(rootId => {
+    processNode(rootId, true);
+  });
+  
+  // Return only the visible nodes
+  return allNodes.filter(node => visibleNodeIds.has(node.id)).map(node => {
+    const nodeInfo = nodeMap.get(node.id);
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        hasChildren: nodeInfo?.children.length ? true : false,
+        isExpanded: expandedNodes.has(node.id),
+      }
+    };
+  });
+};
+
 const getLayoutedElements = (
   nodes: ParseTreeNode[],
   edges: Edge[],
+  expandedNodes: Set<string>,
+  onToggleNode: (nodeId: string) => void,
   direction = "TB"
 ) => {
+  // Filter visible edges to only those connecting visible nodes
+  const visibleNodes = getVisibleNodes(nodes, edges, expandedNodes);
+  const visibleNodeIds = new Set(visibleNodes.map(node => node.id));
+  
+  const visibleEdges = edges.filter(
+    edge => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
+  );
+  
   const isHorizontal = direction === "LR";
   dagreGraph.setGraph({ rankdir: direction });
 
-  nodes.forEach((node) => {
+  visibleNodes.forEach((node) => {
     dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
   });
 
-  edges.forEach((edge) => {
+  visibleEdges.forEach((edge) => {
     dagreGraph.setEdge(edge.source, edge.target);
   });
 
   dagre.layout(dagreGraph);
 
-  const newNodes = nodes.map((node) => {
+  const newNodes = visibleNodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
     return {
       ...node,
@@ -54,11 +134,15 @@ const getLayoutedElements = (
         x: nodeWithPosition.x - nodeWidth / 2,
         y: nodeWithPosition.y - nodeHeight / 2,
       },
+      data: {
+        ...node.data,
+        toggleNode: onToggleNode
+      }
     };
   });
 
   // Ensure each edge has valid handle IDs matching our custom node:
-  const newEdges = edges.map((edge) => ({
+  const newEdges = visibleEdges.map((edge) => ({
     ...edge,
     sourceHandle: edge.sourceHandle ?? "b",
     targetHandle: edge.targetHandle ?? "a",
@@ -78,23 +162,48 @@ const Flow = ({
   step_forwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
   step_backwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) => {
+  // Track expanded nodes in a Set, with root nodes expanded by default
+  const [expandedNodes, setExpandedNodes] = useState(() => {
+    const rootNodeIds = paramNodes
+      .filter(node => !paramEdges.some(edge => edge.target === node.id))
+      .map(node => node.id);
+    return new Set(rootNodeIds);
+  });
+
+  // Toggle function to expand/collapse nodes
+  const onToggleNode = useCallback((nodeId: string) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  }, []);
+
   const { nodes: initNodes, edges: initEdges } = getLayoutedElements(
     paramNodes,
-    paramEdges
+    paramEdges,
+    expandedNodes,
+    onToggleNode
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges);
 
-  // Update layout when the input nodes or edges change
+  // Update layout when the input nodes, edges, or expanded state changes
   useEffect(() => {
     const { nodes: newLayoutNodes, edges: newLayoutEdges } = getLayoutedElements(
       paramNodes,
-      paramEdges
+      paramEdges,
+      expandedNodes,
+      onToggleNode
     );
     setNodes(newLayoutNodes);
     setEdges(newLayoutEdges);
-  }, [paramNodes, paramEdges, setNodes, setEdges]);
+  }, [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges]);
 
   const onConnect = useCallback(
     (params: any) =>
@@ -107,14 +216,16 @@ const Flow = ({
   const onLayout = useCallback(
     (direction: any) => {
       const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-        nodes,
-        edges,
+        paramNodes,
+        paramEdges,
+        expandedNodes,
+        onToggleNode,
         direction
       );
       setNodes([...layoutedNodes]);
       setEdges([...layoutedEdges]);
     },
-    [nodes, edges, setNodes, setEdges]
+    [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges]
   );
 
   return (
