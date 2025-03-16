@@ -174,14 +174,31 @@ const Flow = ({
   const onToggleNode = useCallback((nodeId: string) => {
     setExpandedNodes(prev => {
       const next = new Set(prev);
+      
       if (next.has(nodeId)) {
-        next.delete(nodeId);
+        // When collapsing a node, also collapse all descendants
+        const nodeMap = buildNodeTreeMap(paramNodes, paramEdges);
+        
+        // Helper function to recursively collapse all children
+        const collapseChildren = (id: string) => {
+          next.delete(id);
+          const nodeInfo = nodeMap.get(id);
+          if (nodeInfo) {
+            nodeInfo.children.forEach(childId => {
+              collapseChildren(childId);
+            });
+          }
+        };
+        
+        collapseChildren(nodeId);
       } else {
+        // Just expand this node
         next.add(nodeId);
       }
+      
       return next;
     });
-  }, []);
+  }, [paramNodes, paramEdges]);
 
   const { nodes: initNodes, edges: initEdges } = getLayoutedElements(
     paramNodes,
@@ -201,6 +218,7 @@ const Flow = ({
       expandedNodes,
       onToggleNode
     );
+    
     setNodes(newLayoutNodes);
     setEdges(newLayoutEdges);
   }, [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges]);
@@ -222,6 +240,7 @@ const Flow = ({
         onToggleNode,
         direction
       );
+      
       setNodes([...layoutedNodes]);
       setEdges([...layoutedEdges]);
     },
@@ -239,6 +258,9 @@ const Flow = ({
       nodeTypes={{ parseTreeNode: ParseTreeNodeComponent }}
       fitView
       style={{ backgroundColor: "#F7F9FB" }}
+      nodesDraggable={false}
+      nodesConnectable={false}
+      elementsSelectable={true}
     >
       <Panel position="top-right" className="grid grid-cols-2 gap-4">
         <Button onClick={() => onLayout("TB")} className="mr-2">
