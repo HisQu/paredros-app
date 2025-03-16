@@ -156,7 +156,7 @@ fn get_user_grammar(id: usize, store: State<ParseInfoStore>) -> Result<UserGramm
     })
 }
 
-/// Gets a JSON representation of the current (meaning partial) ParseTree
+/// Gets a JSON representation of the current (meaning partial) ParseTree from a ParseInformation instance
 #[tauri::command]
 fn get_json_parse_tree(id: usize, store: State<ParseInfoStore>) -> Result<serde_json::Value, String> {
     let nodes = store.nodes.lock().unwrap();
