@@ -11,7 +11,6 @@ import {
   BackgroundVariant,
   Panel,
   ConnectionLineType,
-  Node,
   Edge,
   Position,
 } from "@xyflow/react";
@@ -20,10 +19,16 @@ import "@xyflow/react/dist/style.css";
 
 import { Button } from "../components/ui/button.tsx";
 import { nodeHeight, nodeWidth } from "../constants";
+import { ParseTreeNode } from "../interfaces/ParseTreeNode";
+import ParseTreeNodeComponent from "../components/ParseTreeNodeComponent";
 
 const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
-const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = "TB") => {
+const getLayoutedElements = (
+  nodes: ParseTreeNode[],
+  edges: Edge[],
+  direction = "TB"
+) => {
   const isHorizontal = direction === "LR";
   dagreGraph.setGraph({ rankdir: direction });
 
@@ -41,9 +46,10 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = "TB") => 
     const nodeWithPosition = dagreGraph.node(node.id);
     return {
       ...node,
+      // Set the custom type so React Flow renders our custom node component.
+      type: "parseTreeNode",
       targetPosition: isHorizontal ? ("left" as Position) : ("top" as Position),
       sourcePosition: isHorizontal ? ("right" as Position) : ("bottom" as Position),
-      // Adjust the position to account for the React Flow node anchor (top-left)
       position: {
         x: nodeWithPosition.x - nodeWidth / 2,
         y: nodeWithPosition.y - nodeHeight / 2,
@@ -51,18 +57,37 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = "TB") => 
     };
   });
 
-  return { nodes: newNodes, edges };
+  // Ensure each edge has valid handle IDs matching our custom node:
+  const newEdges = edges.map((edge) => ({
+    ...edge,
+    sourceHandle: edge.sourceHandle ?? "b",
+    targetHandle: edge.targetHandle ?? "a",
+  }));
+
+  return { nodes: newNodes, edges: newEdges };
 };
 
-const Flow = ({ node: paramNodes, edge: paramEdges }: { node: Node[]; edge: Edge[] }) => {
-  const { nodes: initNodes, edges: initEdges } = getLayoutedElements(paramNodes, paramEdges);
+const Flow = ({
+  node: paramNodes,
+  edge: paramEdges,
+}: {
+  node: ParseTreeNode[];
+  edge: Edge[];
+}) => {
+  const { nodes: initNodes, edges: initEdges } = getLayoutedElements(
+    paramNodes,
+    paramEdges
+  );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges);
 
   // Update layout when the input nodes or edges change
   useEffect(() => {
-    const { nodes: newLayoutNodes, edges: newLayoutEdges } = getLayoutedElements(paramNodes, paramEdges);
+    const { nodes: newLayoutNodes, edges: newLayoutEdges } = getLayoutedElements(
+      paramNodes,
+      paramEdges
+    );
     setNodes(newLayoutNodes);
     setEdges(newLayoutEdges);
   }, [paramNodes, paramEdges, setNodes, setEdges]);
@@ -77,7 +102,11 @@ const Flow = ({ node: paramNodes, edge: paramEdges }: { node: Node[]; edge: Edge
 
   const onLayout = useCallback(
     (direction: any) => {
-      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, direction);
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+        nodes,
+        edges,
+        direction
+      );
       setNodes([...layoutedNodes]);
       setEdges([...layoutedEdges]);
     },
@@ -92,6 +121,7 @@ const Flow = ({ node: paramNodes, edge: paramEdges }: { node: Node[]; edge: Edge
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
       connectionLineType={ConnectionLineType.SmoothStep}
+      nodeTypes={{ parseTreeNode: ParseTreeNodeComponent }}
       fitView
       style={{ backgroundColor: "#F7F9FB" }}
     >

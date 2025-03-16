@@ -105,7 +105,7 @@ function buildItemsFromUserGrammar(userGrammar: UserGrammar | undefined): Record
   };
 }
 
-function transformJsonToParseTree(root: any): { nodes: Node[]; edges: Edge[] } {
+function transformJsonToParseTree(root: any): { nodes: ParseTreeNode[]; edges: Edge[] } {
   const nodes: ParseTreeNode[] = [];
   const edges: Edge[] = [];
 
