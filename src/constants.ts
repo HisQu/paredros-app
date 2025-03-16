@@ -3,20 +3,553 @@ import {
   Edge
 } from '@xyflow/react';
 
-
-const longTreeTemplate = {
-  root: {
-    "LexerRegeln.g4": null,
-    "Regest.g4": null,
-  },
-};
-
-/// END constants for parse node testing
-
 const sampleInputText = `<head>Henricus de Bocholdia al. d. Foet cler. Traiect., mag. in art. bac. in decr.</head>
 
 <sublemma>m. prov. super par. eccl. in Bodegrauen Traiect. dioc. vacat. per transgr. Ghiselberti de Lochorst ad decan. eccl. s. Saluatoris Traiect. 9 apr. 1410. L 138 254v.</sublemma>
 `;
+
+const sampleParseTree = {
+  "id": "ptn_0",
+  "node_type": "rule",
+  "ruleName": "startRule",
+  "token": null,
+  "exploring_alternatives": false,
+  "trace_steps": [
+    {
+      "id": "0",
+      "node_type": "Rule entry",
+      "state": "486",
+      "current_token": "startRule",
+      "chosen": -1,
+      "input_text": "⏺ <head> Henricus de",
+      "matching_error": false,
+      "next_input_token": null,
+      "next_input_literal": null
+    }
+  ],
+  "children": [
+    {
+      "id": "ptn_1",
+      "node_type": "rule",
+      "ruleName": "head",
+      "token": null,
+      "exploring_alternatives": false,
+      "trace_steps": [
+        {
+          "id": "1",
+          "node_type": "Rule entry",
+          "state": "110",
+          "current_token": "head",
+          "chosen": 1,
+          "input_text": "⏺ <head> Henricus de",
+          "matching_error": false,
+          "next_input_token": null,
+          "next_input_literal": null
+        }
+      ],
+      "children": [
+        {
+          "id": "ptn_2",
+          "node_type": "token",
+          "ruleName": null,
+          "token": "HEADTAG ('<head>')",
+          "exploring_alternatives": false,
+          "trace_steps": [
+            {
+              "id": "2",
+              "node_type": "Token consume",
+              "state": "113",
+              "current_token": "HEADTAG ('<head>')",
+              "chosen": 1,
+              "input_text": "⏺ <head> Henricus de",
+              "matching_error": false,
+              "next_input_token": null,
+              "next_input_literal": null
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "ptn_3",
+          "node_type": "rule",
+          "ruleName": "headInhalt",
+          "token": null,
+          "exploring_alternatives": false,
+          "trace_steps": [
+            {
+              "id": "3",
+              "node_type": "Rule entry",
+              "state": "114",
+              "current_token": "headInhalt",
+              "chosen": 1,
+              "input_text": "<head>⏺ Henricus de Bocholdia",
+              "matching_error": false,
+              "next_input_token": null,
+              "next_input_literal": null
+            }
+          ],
+          "children": [
+            {
+              "id": "ptn_4",
+              "node_type": "rule",
+              "ruleName": "natPerson",
+              "token": null,
+              "exploring_alternatives": false,
+              "trace_steps": [
+                {
+                  "id": "4",
+                  "node_type": "Rule entry",
+                  "state": "121",
+                  "current_token": "natPerson",
+                  "chosen": 1,
+                  "input_text": "<head>⏺ Henricus de Bocholdia",
+                  "matching_error": false,
+                  "next_input_token": null,
+                  "next_input_literal": null
+                },
+                {
+                  "id": "24",
+                  "node_type": "Sync",
+                  "state": "133",
+                  "current_token": "CLERIC ('cler.')",
+                  "chosen": 1,
+                  "input_text": "<head> Henricus de Bocholdia al. d. Foet⏺ cler. Traiect. ,",
+                  "matching_error": false,
+                  "next_input_token": null,
+                  "next_input_literal": null
+                }
+              ],
+              "children": [
+                {
+                  "id": "ptn_5",
+                  "node_type": "rule",
+                  "ruleName": "personName",
+                  "token": null,
+                  "exploring_alternatives": false,
+                  "trace_steps": [
+                    {
+                      "id": "5",
+                      "node_type": "Rule entry",
+                      "state": "131",
+                      "current_token": "personName",
+                      "chosen": 1,
+                      "input_text": "<head>⏺ Henricus de Bocholdia",
+                      "matching_error": false,
+                      "next_input_token": null,
+                      "next_input_literal": null
+                    },
+                    {
+                      "id": "13",
+                      "node_type": "Sync",
+                      "state": "137",
+                      "current_token": "AL ('al.')",
+                      "chosen": 1,
+                      "input_text": "<head> Henricus de Bocholdia⏺ al. d. Foet",
+                      "matching_error": false,
+                      "next_input_token": null,
+                      "next_input_literal": null
+                    },
+                    {
+                      "id": "23",
+                      "node_type": "Rule exit",
+                      "state": "136",
+                      "current_token": "Rule exit: personName",
+                      "chosen": 1,
+                      "input_text": "<head> Henricus de Bocholdia al. d. Foet⏺ cler. Traiect. ,",
+                      "matching_error": false,
+                      "next_input_token": null,
+                      "next_input_literal": null
+                    }
+                  ],
+                  "children": [
+                    {
+                      "id": "ptn_6",
+                      "node_type": "rule",
+                      "ruleName": "name",
+                      "token": null,
+                      "exploring_alternatives": false,
+                      "trace_steps": [
+                        {
+                          "id": "6",
+                          "node_type": "Rule entry",
+                          "state": "135",
+                          "current_token": "name",
+                          "chosen": 1,
+                          "input_text": "<head>⏺ Henricus de Bocholdia",
+                          "matching_error": false,
+                          "next_input_token": null,
+                          "next_input_literal": null
+                        },
+                        {
+                          "id": "8",
+                          "node_type": "Decision",
+                          "state": "471",
+                          "current_token": "DE ('de')",
+                          "chosen": 1,
+                          "input_text": "<head> Henricus⏺ de Bocholdia al.",
+                          "matching_error": false,
+                          "next_input_token": null,
+                          "next_input_literal": null
+                        },
+                        {
+                          "id": "10",
+                          "node_type": "Sync",
+                          "state": "469",
+                          "current_token": "WORD ('Bocholdia')",
+                          "chosen": -1,
+                          "input_text": "<head> Henricus de⏺ Bocholdia al. d.",
+                          "matching_error": false,
+                          "next_input_token": null,
+                          "next_input_literal": null
+                        },
+                        {
+                          "id": "12",
+                          "node_type": "Rule exit",
+                          "state": "468",
+                          "current_token": "Rule exit: name",
+                          "chosen": 1,
+                          "input_text": "<head> Henricus de Bocholdia⏺ al. d. Foet",
+                          "matching_error": false,
+                          "next_input_token": null,
+                          "next_input_literal": null
+                        }
+                      ],
+                      "children": [
+                        {
+                          "id": "ptn_7",
+                          "node_type": "token",
+                          "ruleName": null,
+                          "token": "WORD ('Henricus')",
+                          "exploring_alternatives": false,
+                          "trace_steps": [
+                            {
+                              "id": "7",
+                              "node_type": "Token consume",
+                              "state": "465",
+                              "current_token": "WORD ('Henricus')",
+                              "chosen": 1,
+                              "input_text": "<head>⏺ Henricus de Bocholdia",
+                              "matching_error": false,
+                              "next_input_token": null,
+                              "next_input_literal": null
+                            }
+                          ],
+                          "children": []
+                        },
+                        {
+                          "id": "ptn_8",
+                          "node_type": "token",
+                          "ruleName": null,
+                          "token": "DE ('de')",
+                          "exploring_alternatives": false,
+                          "trace_steps": [
+                            {
+                              "id": "9",
+                              "node_type": "Token consume",
+                              "state": "466",
+                              "current_token": "DE ('de')",
+                              "chosen": 1,
+                              "input_text": "<head> Henricus⏺ de Bocholdia al.",
+                              "matching_error": false,
+                              "next_input_token": null,
+                              "next_input_literal": null
+                            }
+                          ],
+                          "children": []
+                        },
+                        {
+                          "id": "ptn_9",
+                          "node_type": "token",
+                          "ruleName": null,
+                          "token": "WORD ('Bocholdia')",
+                          "exploring_alternatives": false,
+                          "trace_steps": [
+                            {
+                              "id": "11",
+                              "node_type": "Token consume",
+                              "state": "468",
+                              "current_token": "WORD ('Bocholdia')",
+                              "chosen": 1,
+                              "input_text": "<head> Henricus de⏺ Bocholdia al. d.",
+                              "matching_error": false,
+                              "next_input_token": null,
+                              "next_input_literal": null
+                            }
+                          ],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "id": "ptn_10",
+                      "node_type": "rule",
+                      "ruleName": "alias",
+                      "token": null,
+                      "exploring_alternatives": false,
+                      "trace_steps": [
+                        {
+                          "id": "14",
+                          "node_type": "Rule entry",
+                          "state": "136",
+                          "current_token": "alias",
+                          "chosen": 1,
+                          "input_text": "<head> Henricus de Bocholdia⏺ al. d. Foet",
+                          "matching_error": false,
+                          "next_input_token": null,
+                          "next_input_literal": null
+                        },
+                        {
+                          "id": "15",
+                          "node_type": "Decision",
+                          "state": "480",
+                          "current_token": "AL ('al.')",
+                          "chosen": 5,
+                          "input_text": "<head> Henricus de Bocholdia⏺ al. d. Foet",
+                          "matching_error": false,
+                          "next_input_token": null,
+                          "next_input_literal": null
+                        },
+                        {
+                          "id": "22",
+                          "node_type": "Rule exit",
+                          "state": "482",
+                          "current_token": "Rule exit: alias",
+                          "chosen": 1,
+                          "input_text": "<head> Henricus de Bocholdia al. d. Foet⏺ cler. Traiect. ,",
+                          "matching_error": false,
+                          "next_input_token": null,
+                          "next_input_literal": null
+                        }
+                      ],
+                      "children": [
+                        {
+                          "id": "ptn_11",
+                          "node_type": "token",
+                          "ruleName": null,
+                          "token": "AL ('al.')",
+                          "exploring_alternatives": false,
+                          "trace_steps": [
+                            {
+                              "id": "16",
+                              "node_type": "Token consume",
+                              "state": "478",
+                              "current_token": "AL ('al.')",
+                              "chosen": 1,
+                              "input_text": "<head> Henricus de Bocholdia⏺ al. d. Foet",
+                              "matching_error": false,
+                              "next_input_token": null,
+                              "next_input_literal": null
+                            }
+                          ],
+                          "children": []
+                        },
+                        {
+                          "id": "ptn_12",
+                          "node_type": "token",
+                          "ruleName": null,
+                          "token": "D ('d.')",
+                          "exploring_alternatives": false,
+                          "trace_steps": [
+                            {
+                              "id": "17",
+                              "node_type": "Token consume",
+                              "state": "479",
+                              "current_token": "D ('d.')",
+                              "chosen": 1,
+                              "input_text": "<head> Henricus de Bocholdia al.⏺ d. Foet cler.",
+                              "matching_error": false,
+                              "next_input_token": null,
+                              "next_input_literal": null
+                            }
+                          ],
+                          "children": []
+                        },
+                        {
+                          "id": "ptn_13",
+                          "node_type": "rule",
+                          "ruleName": "name",
+                          "token": null,
+                          "exploring_alternatives": false,
+                          "trace_steps": [
+                            {
+                              "id": "18",
+                              "node_type": "Rule entry",
+                              "state": "482",
+                              "current_token": "name",
+                              "chosen": 1,
+                              "input_text": "<head> Henricus de Bocholdia al. d.⏺ Foet cler. Traiect.",
+                              "matching_error": false,
+                              "next_input_token": null,
+                              "next_input_literal": null
+                            },
+                            {
+                              "id": "20",
+                              "node_type": "Decision",
+                              "state": "471",
+                              "current_token": "CLERIC ('cler.')",
+                              "chosen": 2,
+                              "input_text": "<head> Henricus de Bocholdia al. d. Foet⏺ cler. Traiect. ,",
+                              "matching_error": false,
+                              "next_input_token": null,
+                              "next_input_literal": null
+                            },
+                            {
+                              "id": "21",
+                              "node_type": "Rule exit",
+                              "state": "471",
+                              "current_token": "Rule exit: name",
+                              "chosen": 1,
+                              "input_text": "<head> Henricus de Bocholdia al. d. Foet⏺ cler. Traiect. ,",
+                              "matching_error": false,
+                              "next_input_token": null,
+                              "next_input_literal": null
+                            }
+                          ],
+                          "children": [
+                            {
+                              "id": "ptn_14",
+                              "node_type": "token",
+                              "ruleName": null,
+                              "token": "WORD ('Foet')",
+                              "exploring_alternatives": false,
+                              "trace_steps": [
+                                {
+                                  "id": "19",
+                                  "node_type": "Token consume",
+                                  "state": "465",
+                                  "current_token": "WORD ('Foet')",
+                                  "chosen": 1,
+                                  "input_text": "<head> Henricus de Bocholdia al. d.⏺ Foet cler. Traiect.",
+                                  "matching_error": false,
+                                  "next_input_token": null,
+                                  "next_input_literal": null
+                                }
+                              ],
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "ptn_15",
+                  "node_type": "rule",
+                  "ruleName": "vita",
+                  "token": null,
+                  "exploring_alternatives": false,
+                  "trace_steps": [
+                    {
+                      "id": "25",
+                      "node_type": "Rule entry",
+                      "state": "132",
+                      "current_token": "vita",
+                      "chosen": 1,
+                      "input_text": "<head> Henricus de Bocholdia al. d. Foet⏺ cler. Traiect. ,",
+                      "matching_error": false,
+                      "next_input_token": null,
+                      "next_input_literal": null
+                    },
+                    {
+                      "id": "26",
+                      "node_type": "Merged Sync",
+                      "state": "160",
+                      "current_token": "CLERIC ('cler.')",
+                      "chosen": 2,
+                      "input_text": "<head> Henricus de Bocholdia al. d. Foet⏺ cler. Traiect. ,",
+                      "matching_error": false,
+                      "next_input_token": null,
+                      "next_input_literal": null
+                    }
+                  ],
+                  "children": [
+                    {
+                      "id": "ptn_16",
+                      "node_type": "rule",
+                      "ruleName": "inkardination",
+                      "token": null,
+                      "exploring_alternatives": false,
+                      "trace_steps": [
+                        {
+                          "id": "27",
+                          "node_type": "Rule entry",
+                          "state": "156",
+                          "current_token": "inkardination",
+                          "chosen": 1,
+                          "input_text": "<head> Henricus de Bocholdia al. d. Foet⏺ cler. Traiect. ,",
+                          "matching_error": false,
+                          "next_input_token": null,
+                          "next_input_literal": null
+                        },
+                        {
+                          "id": "28",
+                          "node_type": "Sync",
+                          "state": "167",
+                          "current_token": "CLERIC ('cler.')",
+                          "chosen": 1,
+                          "input_text": "<head> Henricus de Bocholdia al. d. Foet⏺ cler. Traiect. ,",
+                          "matching_error": false,
+                          "next_input_token": null,
+                          "next_input_literal": null
+                        }
+                      ],
+                      "children": [
+                        {
+                          "id": "ptn_17",
+                          "node_type": "rule",
+                          "ruleName": "h_weihegrad",
+                          "token": null,
+                          "exploring_alternatives": false,
+                          "trace_steps": [
+                            {
+                              "id": "29",
+                              "node_type": "Rule entry",
+                              "state": "164",
+                              "current_token": "h_weihegrad",
+                              "chosen": 1,
+                              "input_text": "<head> Henricus de Bocholdia al. d. Foet⏺ cler. Traiect. ,",
+                              "matching_error": false,
+                              "next_input_token": null,
+                              "next_input_literal": null
+                            }
+                          ],
+                          "children": [
+                            {
+                              "id": "ptn_18",
+                              "node_type": "token",
+                              "ruleName": null,
+                              "token": "CLERIC ('cler.')",
+                              "exploring_alternatives": false,
+                              "trace_steps": [
+                                {
+                                  "id": "30",
+                                  "node_type": "Token consume",
+                                  "state": "172",
+                                  "current_token": "CLERIC ('cler.')",
+                                  "chosen": 1,
+                                  "input_text": "<head> Henricus de Bocholdia al. d. Foet⏺ cler. Traiect. ,",
+                                  "matching_error": false,
+                                  "next_input_token": null,
+                                  "next_input_literal": null
+                                }
+                              ],
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
 
 
 const antlr4MonarchLanguage = {
@@ -109,227 +642,6 @@ const antlr4MonarchLanguage = {
   }
 };
 
-
-
-const grammarFiles = [
-  {
-    name: "Regest.g4", language: "antlr4", content: `grammar MyGrammar;
-
-startRule : head sublemma ;
-
-head : HEADTAG headInhalt CLOSEHEADTAG ;
-sublemma : SUBLEMMATAG sublemmaInhalt CLOSESUBLEMMATAG ;
-
-headInhalt : natPerson ;
-sublemmaInhalt : (provision)+ date fund;
-
-natPerson : personName vita? ;
-personName : name alias? ;
-provision : mProvision ;
-date : INT month INT PUNKT? ;
-fund : L INT INT extras? ;
-
-vita : (KOMMA? (inkardination | akadGrad))+ ;
-inkardination : (h_weihegrad | n_weihegrad | kein_weihegrad) location?;
-h_weihegrad : CLERIC ;
-n_weihegrad : ACOL | ACOLIT | LECT (IN orden)? | ACOLUT ;
-kein_weihegrad : LAICUS ;
-
-orden : geistlicheOrden | ritterOrden;
-geistlicheOrden : zisterzienserOrden;
-zisterzienserOrden : (O CIST | O S BERNARDI) ;
-
-ritterOrden : deutscherOrden | johanniterOrden ;
-deutscherOrden : HOSP B MARIE THEUTONICORUM JEROSOL | ORD THEOTON ;
-johanniterOrden : HOSP S JOHANNIS JEROSOL ;
-
-akadGrad : grad (IN studienfach)? (KOMMA? grad (IN studienfach)?)* ; // Allow multiple degrees
-grad : BAC | MAG | DOCT | LIC | PROF ;
-studienfach : ART | DECR | IUR CAN | IUR UTR | THEOL | MED | LEG  ;
-
-extras : (SPECIAL | PUNKT | WORD)+ ;
-
-mProvision : mIntro (pfruende | acquType)+ ;
-mIntro : M PROV SUPER ;
-
-acquType :  (tod | uebertritt) natPerson ((DE | AD) (orden | pfruende))?;
-
-uebertritt : (uebertrittwirdfrei| uebertrittistfrei| uebertrittwarfrei);
-uebertrittwirdfrei: VACAT? (PER | POST)? TRANSGR (AD (orden | pfruende))? ;
-uebertrittistfrei: VAC? (PER | POST)? TRANSGR (AD (orden | pfruende))?  ;
-uebertrittwarfrei: POST TRANSGR (AD (orden | pfruende))? ((AD | IN | EX) MON)? ;
-
-tod : (todistfrei| todwirdfrei | todwarfrei) ;
-todwirdfrei: VACAT? (PER | POST)? OB ;
-todistfrei: VAC? (PER | POST)? OB ;
-todwarfrei:  POST OB ;
-
-pfruende : pfruendenNorm | pfruendenInst ;
-pfruendenNorm : pfruendenNormType location? ;
-pfruendenNormType : PAR ECCL | ARCHIBES ;
-pfruendenType : ADMIN | DECAN | CAPELL ;
-
-pfruendenInst : (pfruendenType patroName?)* ((ET | AC) pfruendenType)* instType patroName? orden? location? ;
-patroName : (B | BB | SS | S ) ( APL | PTRNAME);
-instType : instTypeHaupt instTypeSub? ;
-instTypeHaupt : CATHEDRAL | MON | CAPELL | ECCL | HOSP | HOSP PAUPER | DOM;
-instTypeSub : CAPELL | ECCL | ALT;
-
-location : (stadt+ (bistum | bistuemer)?) | (bistum | bistuemer) ;
-stadt : (IN | EM | PROPE VILLAM)? ortsType? (stadtnamen | diocAbks | ET | AC)+ ortsType? IN? WORD? KOMMA? ; // Allow diocAbks in stadt
-bistum : diocAbks DIOCESIS?;
-bistuemer : diocAbks (AC | ET) diocAbks? ;
-ortsType : OP | OPID | CIV | CIVIT | BURGUO | MAIORIS_CASTRI | CASTRO ;
-
-month : IAN | FEBR | MART | APR | MAI | IUN | IUL | AUG | SEPT | OCT | NOV | DEC ;
-
-stadtnamen : STADTNAMEN ;
-name : (WORD (DE (stadt | WORD))? ) ;
-alias : (AL | D | DICTUS | AL DICTUS | AL D) name ;
-diocAbks : STADTNAMEN ;
-
-// Whitespace
-WS : [ \t\r\n]+ -> skip ;` },
-  {
-    name: "LexerRegeln.g4", language: "antlr4", content: `// Lexer Rules for tags
-HEADTAG : '<head>' ;
-CLOSEHEADTAG : '</head>' ;
-SUBLEMMATAG : '<sublemma>' ;
-CLOSESUBLEMMATAG : '</sublemma>' ;
-
-
-// Lexer Rules for content
-VACAT : 'vacat.' ;
-VAC : 'vac.' ;
-OB : 'ob.' ;
-PER : 'per' | 'per.' ;
-POST : 'post' ;
-TRANSGR : 'transgr.' ;
-AD : 'ad' ;
-ET : 'et' ;
-CUM : 'cum' ;
-AC : 'ac' ;
-IN : 'in' ;
-EX : 'ex' ;
-EM : 'e.m.' ;
-DE : 'de' ;
-PROPE : 'prope' ;
-VILLAM : 'villam' ;
-M : 'm.' ;
-L : 'L' ;
-
-
-OP : 'op.' ;
-OPID : 'opid.' ;
-CIV : 'civ.' ;
-CIVIT : 'civit.' ;
-BURGUO : 'burguo' ;
-MAIORIS_CASTRI : 'maioris castri' ;
-CASTRO : 'castro' ;
-
-// months
-IAN : 'ian.' ;
-FEBR : 'febr.' ;
-MART : 'mart.' ;
-APR : 'apr.' ;
-MAI : 'mai.' ;
-IUN : 'iun.' ;
-IUL : 'iul.' ;
-AUG : 'aug.' ;
-SEPT : 'sept.' ;
-OCT : 'oct.' ;
-NOV : 'nov.' ;
-DEC : 'dec.' ;
-
-// Namen
-STADTNAMEN: 'Traiectum.' | 'Bodegrauen' | 'Traiect.' ;
-
-PTRNAME : MARIE | ANDREE | MICHAELIS | NICOLAI | SALUATORIS | WALBURGIS ;
-
-MARIE : 'Marie' ;
-ANDREE : 'Andree' ;
-MICHAELIS : 'Michaelis' ;
-NICOLAI : 'Nicolai' ;
-SALUATORIS : 'Saluatoris' ;
-WALBURGIS : 'Walburgis' ;
-BERNARDI : 'Bernardi' ;
-THEOTON : 'Theoton.' ;
-THEUTONICORUM : 'Theutonicorum' ;
-JEROSOL : 'Jerosol.' ;
-JOHANNIS : 'Johannis' ;
-
-// alias
-AL : 'al.' ;
-D : 'd.' ;
-DICTUS : 'dictus' ;
-
-// title or academia
-CLERIC : 'cler.' ;
-MAG : 'mag.' ;
-BAC : 'bac.' ;
-DECR : 'decr.' ;
-ART : 'art.' ;
-DOCT : 'doct.' ;
-LIC : 'lic.' ;
-PROF : 'prof.' ;
-THEOL: 'theol.' ;
-LAICUS: 'laicus' ;
-IUR : 'iur.' ;
-CAN : 'can.' ;
-UTR : 'utr.' ;
-MED : 'med.' ;
-LEG : 'leg.' ;
-
-// Weihegrad related
-ACOL : 'acol.' ;
-ACOLIT : 'acolit.' ;
-LECT : 'lect.' ;
-ACOLUT : 'acolut' ;
-ORD : 'ord.' ;
-O : 'o.' ;
-S : 's.' ;
-ANT : 'Ant.' ;
-HEREM : 'Herem.' ;
-BEN : 'Ben.' ;
-CLUN : 'Clun.' ;
-PRED : 'Pred.' ;
-MIN : 'Min.' ;
-CARMEL : 'Carmel.' ;
-CIST : 'Cist.' ;
-PREM : 'Prem.' ;
-DOM : 'dom.' ;
-B : 'b.' ;
-BB : 'bb.' ;
-SS : 'ss.' ;
-APL : 'apl.' ;
-
-// location
-PROV : 'prov.' ;
-SUPER : 'super' ;
-PAR : 'par.' ;
-ECCL : 'eccl.' ;
-CATHEDRAL: 'cathedr.' ;
-CAPELLAN : 'capellan.' ;
-HOSP : 'hosp.' ;
-PAUPER : 'paup.' | 'pauperum' ;
-MON : 'mon.' ;
-DIOCESIS : 'dioc.' ;
-DICTE : 'dicte' ;
-ARCHIBES : ('archipresb.' | 'archipresbit.') WORD ;
-ADMIN : 'admin.' ;
-CAPELL : 'capel.' | 'capell.' ;
-DECAN : 'decan.' ;
-ALT : 'alt.' ;
-
-
-// Lexer Tokens for general purpose (at the bottom of the file)
-KOMMA : ',' ;
-PUNKT : '.' ;
-INT : [0-9]+ ;
-WORD : [a-zA-Z][a-zA-Z0-9]* ;
-SPECIAL : [;:'"\\-_()?!/=+*<>] ;` },
-];
-
 const initialNodes:Node[] = [
   { id: '1', position: { x: 0, y: 0 }, data: { label: '1' } },
   { id: '2', position: { x: 0, y: 100 }, data: { label: '2' } },
@@ -341,4 +653,4 @@ const nodeHeight = 36;
 
 const tempFileName = "temporaryParedrosInput.txt";
 
-export { tempFileName, nodeWidth, nodeHeight, initialNodes, initialEdges, longTreeTemplate, sampleInputText, grammarFiles, antlr4MonarchLanguage }
+export { tempFileName, nodeWidth, nodeHeight, initialNodes, initialEdges, sampleParseTree, sampleInputText, antlr4MonarchLanguage }
