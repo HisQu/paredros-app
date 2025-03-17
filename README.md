@@ -88,11 +88,3 @@ npm run tauri
 
 - [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
 
-
-## User Guide (How to use the program)
-
-// TODO
-- Wie muss man seine Grammatiken schreiben? -> Import statements, damit die IDE weiß was benutzt wird
-- Wie klickt man sich durch die GUI?
-- Was ist ein "Schritt"?
-
