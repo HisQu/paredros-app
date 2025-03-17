@@ -17,6 +17,9 @@ export interface ParseTreeNodeData extends Record<string, unknown> {
   ruleName: string;
   token: string;
   traceSteps: ParseStep[];
+  hasChildren?: boolean;
+  isExpanded?: boolean;
+  toggleNode?: (nodeId: string) => void;
 }
 
 export interface ParseTreeNode extends Node<ParseTreeNodeData> { }
