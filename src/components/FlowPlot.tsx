@@ -170,7 +170,7 @@ const Flow = ({
     return new Set(rootNodeIds);
   });
 
-  // Toggle function to expand/collapse nodes
+  // Toggle function to expand/collapse individual nodes
   const onToggleNode = useCallback((nodeId: string) => {
     setExpandedNodes(prev => {
       const next = new Set(prev);
@@ -247,6 +247,22 @@ const Flow = ({
     [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges]
   );
 
+  // Function to toggle expansion of all nodes
+  const expand_all = useCallback(() => {
+    // Create a set of all node IDs from the input nodes
+    const allNodeIds = new Set(paramNodes.map(node => node.id));
+    // If all nodes are already expanded, collapse back to only the root nodes.
+    if (expandedNodes.size === allNodeIds.size) {
+      const rootNodeIds = paramNodes
+        .filter(node => !paramEdges.some(edge => edge.target === node.id))
+        .map(node => node.id);
+      setExpandedNodes(new Set(rootNodeIds));
+    } else {
+      // Otherwise, expand all nodes.
+      setExpandedNodes(allNodeIds);
+    }
+  }, [paramNodes, paramEdges, expandedNodes]);
+
   return (
     <ReactFlow
       nodes={nodes}
@@ -269,6 +285,7 @@ const Flow = ({
         <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
         <Button color="green" onClick={step_backwards}>Step Back</Button>
         <Button color="green" onClick={step_forwards}>Step Forward</Button>
+        <Button color="fuchsia" onClick={expand_all}>Expand All</Button>
       </Panel>
       <Controls />
       <MiniMap />
