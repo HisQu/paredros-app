@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 // React Flow
 import {
   ReactFlow,
@@ -80,7 +80,7 @@ const getVisibleNodes = (
     processNode(rootId, true);
   });
   
-  // Return only the visible nodes
+  // Return only the visible nodes with additional data properties.
   return allNodes.filter(node => visibleNodeIds.has(node.id)).map(node => {
     const nodeInfo = nodeMap.get(node.id);
     return {
@@ -169,6 +169,9 @@ const Flow = ({
       .map(node => node.id);
     return new Set(rootNodeIds);
   });
+
+  // Ref to store initial positions of nodes when dragging starts.
+  const dragStartPositionsRef = useRef<Map<string, { x: number, y: number }>>(new Map());
 
   // Toggle function to expand/collapse individual nodes
   const onToggleNode = useCallback((nodeId: string) => {
@@ -263,6 +266,49 @@ const Flow = ({
     }
   }, [paramNodes, paramEdges, expandedNodes]);
 
+  // When a node drag starts, store the current positions for all nodes.
+  const onNodeDragStart = useCallback((event: any, node: any) => {
+    dragStartPositionsRef.current = new Map(
+      nodes.map(n => [n.id, { x: n.position.x, y: n.position.y }])
+    );
+  }, [nodes]);
+
+  // While dragging a node, compute the movement delta and apply it to the entire subtree.
+  const onNodeDrag = useCallback((event: any, node: any) => {
+    const startPositions = dragStartPositionsRef.current;
+    const startPos = startPositions.get(node.id);
+    if (!startPos) return;
+    const dx = node.position.x - startPos.x;
+    const dy = node.position.y - startPos.y;
+
+    // Get the subtree (all descendants including the dragged node) based on the tree structure.
+    const nodeMap = buildNodeTreeMap(paramNodes, paramEdges);
+    const subtreeIds = new Set<string>();
+    const collectSubtree = (id: string) => {
+      subtreeIds.add(id);
+      const info = nodeMap.get(id);
+      if (info) {
+        info.children.forEach(childId => {
+          collectSubtree(childId);
+        });
+      }
+    };
+    collectSubtree(node.id);
+
+    // Update positions for all nodes in the subtree using their initial positions + the movement delta.
+    setNodes(nds =>
+      nds.map(n => {
+        if (subtreeIds.has(n.id)) {
+          const original = startPositions.get(n.id);
+          return original
+            ? { ...n, position: { x: original.x + dx, y: original.y + dy } }
+            : n;
+        }
+        return n;
+      })
+    );
+  }, [paramNodes, paramEdges, setNodes]);
+
   return (
     <ReactFlow
       nodes={nodes}
@@ -270,11 +316,13 @@ const Flow = ({
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
+      onNodeDragStart={onNodeDragStart}
+      onNodeDrag={onNodeDrag}
       connectionLineType={ConnectionLineType.SmoothStep}
       nodeTypes={{ parseTreeNode: ParseTreeNodeComponent }}
       fitView
       style={{ backgroundColor: "#F7F9FB" }}
-      nodesDraggable={false}
+      nodesDraggable={true}
       nodesConnectable={false}
       elementsSelectable={true}
     >
