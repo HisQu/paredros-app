@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 // React Flow
 import {
   ReactFlow,
@@ -80,7 +80,7 @@ const getVisibleNodes = (
     processNode(rootId, true);
   });
   
-  // Return only the visible nodes
+  // Return only the visible nodes with additional data properties.
   return allNodes.filter(node => visibleNodeIds.has(node.id)).map(node => {
     const nodeInfo = nodeMap.get(node.id);
     return {
@@ -170,7 +170,10 @@ const Flow = ({
     return new Set(rootNodeIds);
   });
 
-  // Toggle function to expand/collapse nodes
+  // Ref to store initial positions of nodes when dragging starts.
+  const dragStartPositionsRef = useRef<Map<string, { x: number, y: number }>>(new Map());
+
+  // Toggle function to expand/collapse individual nodes
   const onToggleNode = useCallback((nodeId: string) => {
     setExpandedNodes(prev => {
       const next = new Set(prev);
@@ -247,6 +250,65 @@ const Flow = ({
     [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges]
   );
 
+  // Function to toggle expansion of all nodes
+  const expand_all = useCallback(() => {
+    // Create a set of all node IDs from the input nodes
+    const allNodeIds = new Set(paramNodes.map(node => node.id));
+    // If all nodes are already expanded, collapse back to only the root nodes.
+    if (expandedNodes.size === allNodeIds.size) {
+      const rootNodeIds = paramNodes
+        .filter(node => !paramEdges.some(edge => edge.target === node.id))
+        .map(node => node.id);
+      setExpandedNodes(new Set(rootNodeIds));
+    } else {
+      // Otherwise, expand all nodes.
+      setExpandedNodes(allNodeIds);
+    }
+  }, [paramNodes, paramEdges, expandedNodes]);
+
+  // When a node drag starts, store the current positions for all nodes.
+  const onNodeDragStart = useCallback((event: any, node: any) => {
+    dragStartPositionsRef.current = new Map(
+      nodes.map(n => [n.id, { x: n.position.x, y: n.position.y }])
+    );
+  }, [nodes]);
+
+  // While dragging a node, compute the movement delta and apply it to the entire subtree.
+  const onNodeDrag = useCallback((event: any, node: any) => {
+    const startPositions = dragStartPositionsRef.current;
+    const startPos = startPositions.get(node.id);
+    if (!startPos) return;
+    const dx = node.position.x - startPos.x;
+    const dy = node.position.y - startPos.y;
+
+    // Get the subtree (all descendants including the dragged node) based on the tree structure.
+    const nodeMap = buildNodeTreeMap(paramNodes, paramEdges);
+    const subtreeIds = new Set<string>();
+    const collectSubtree = (id: string) => {
+      subtreeIds.add(id);
+      const info = nodeMap.get(id);
+      if (info) {
+        info.children.forEach(childId => {
+          collectSubtree(childId);
+        });
+      }
+    };
+    collectSubtree(node.id);
+
+    // Update positions for all nodes in the subtree using their initial positions + the movement delta.
+    setNodes(nds =>
+      nds.map(n => {
+        if (subtreeIds.has(n.id)) {
+          const original = startPositions.get(n.id);
+          return original
+            ? { ...n, position: { x: original.x + dx, y: original.y + dy } }
+            : n;
+        }
+        return n;
+      })
+    );
+  }, [paramNodes, paramEdges, setNodes]);
+
   return (
     <ReactFlow
       nodes={nodes}
@@ -254,11 +316,13 @@ const Flow = ({
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
+      onNodeDragStart={onNodeDragStart}
+      onNodeDrag={onNodeDrag}
       connectionLineType={ConnectionLineType.SmoothStep}
       nodeTypes={{ parseTreeNode: ParseTreeNodeComponent }}
       fitView
       style={{ backgroundColor: "#F7F9FB" }}
-      nodesDraggable={false}
+      nodesDraggable={true}
       nodesConnectable={false}
       elementsSelectable={true}
     >
@@ -269,6 +333,7 @@ const Flow = ({
         <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
         <Button color="green" onClick={step_backwards}>Step Back</Button>
         <Button color="green" onClick={step_forwards}>Step Forward</Button>
+        <Button color="fuchsia" onClick={expand_all}>Expand All</Button>
       </Panel>
       <Controls />
       <MiniMap />
