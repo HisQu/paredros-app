@@ -196,6 +196,8 @@ function App() {
     setNodes(undefined);
     setEdges(undefined);
 
+    saveGrammarFiles();
+
     setParseInfo(await invoke("get_parse_info", { grammar: grammarFileLocation }));
   }
 

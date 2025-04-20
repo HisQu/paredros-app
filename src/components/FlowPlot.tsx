@@ -267,14 +267,14 @@ const Flow = ({
   }, [paramNodes, paramEdges, expandedNodes]);
 
   // When a node drag starts, store the current positions for all nodes.
-  const onNodeDragStart = useCallback((event: any, node: any) => {
+  const onNodeDragStart = useCallback((_: any, __: any) => {
     dragStartPositionsRef.current = new Map(
       nodes.map(n => [n.id, { x: n.position.x, y: n.position.y }])
     );
   }, [nodes]);
 
   // While dragging a node, compute the movement delta and apply it to the entire subtree.
-  const onNodeDrag = useCallback((event: any, node: any) => {
+  const onNodeDrag = useCallback((_: any, node: any) => {
     const startPositions = dragStartPositionsRef.current;
     const startPos = startPositions.get(node.id);
     if (!startPos) return;
