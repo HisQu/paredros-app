@@ -11,7 +11,7 @@ use std::{
         Mutex,
     },
 };
-use tauri::{State};
+use tauri::State;
 
 /// A store for Python ParseInformation instances.
 struct ParseInfoStore {
