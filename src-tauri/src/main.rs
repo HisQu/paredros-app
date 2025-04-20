@@ -11,7 +11,7 @@ use std::{
         Mutex,
     },
 };
-use tauri::{Manager, State};
+use tauri::{State};
 
 /// A store for Python ParseInformation instances.
 struct ParseInfoStore {
@@ -220,9 +220,8 @@ fn main() {
     pyo3::prepare_freethreaded_python();
 
     tauri::Builder::default()
-        .setup(|app| {
+        .setup(|_app| {
             #[cfg(debug_assertions)]
-            app.get_webview_window("main").unwrap().open_devtools();
             Ok(())
         })
         .plugin(tauri_plugin_fs::init())
