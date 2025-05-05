@@ -71,7 +71,6 @@ fn get_parse_info(grammar: String, store: State<ParseInfoStore>) -> Result<usize
 #[tauri::command]
 fn generate_parser(
     id: usize,
-    input: String,
     store: State<ParseInfoStore>,
 ) -> Result<String, String> {
     let nodes = store.nodes.lock().unwrap();
@@ -80,7 +79,7 @@ fn generate_parser(
     Python::with_gil(|py| {
         let func = parse_info.getattr(py, "generate_parser").map_err(|e| e.to_string())?;
         
-        func.call1(py, (input,)).map_err(|e| e.to_string())?;
+        func.call0(py).map_err(|e| e.to_string())?;
 
         Ok("Generated parser successfully".to_string())
     })
