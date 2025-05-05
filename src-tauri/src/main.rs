@@ -36,7 +36,7 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-/// Create a new ParseInformation instance by calling Python's get_parse_info function.
+/// Create a new ParseInformation instance by calling the get_parse_info function from a helper file.
 /// Returns an ID (handle) for the created instance.
 #[tauri::command]
 fn get_parse_info(grammar: String, store: State<ParseInfoStore>) -> Result<usize, String> {
@@ -64,6 +64,25 @@ fn get_parse_info(grammar: String, store: State<ParseInfoStore>) -> Result<usize
         let id = store.counter.fetch_add(1, Ordering::SeqCst);
         store.nodes.lock().unwrap().insert(id, parse_info);
         Ok(id)
+    })
+}
+
+/// Call the generate_parser method on a stored ParseInformation instance
+#[tauri::command]
+fn generate_parser(
+    id: usize,
+    input: String,
+    store: State<ParseInfoStore>,
+) -> Result<String, String> {
+    let nodes = store.nodes.lock().unwrap();
+    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
+
+    Python::with_gil(|py| {
+        let func = parse_info.getattr(py, "generate_parser").map_err(|e| e.to_string())?;
+        
+        func.call1(py, (input,)).map_err(|e| e.to_string())?;
+
+        Ok("Generated parser successfully".to_string())
     })
 }
 
@@ -232,6 +251,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             greet,
             get_parse_info,
+            generate_parser,
             parse_input,
             get_parse_tree,
             get_user_grammar,

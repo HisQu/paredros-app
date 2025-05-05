@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 // Tauri
 import { invoke } from "@tauri-apps/api/core";
 import * as path from '@tauri-apps/api/path';
@@ -20,7 +20,8 @@ import Editor from '@monaco-editor/react';
 import { Allotment } from "allotment";
 import "allotment/dist/style.css";
 // React Complex Tree
-import { UncontrolledTreeEnvironment, Tree, StaticTreeDataProvider, TreeItem } from 'react-complex-tree';
+import { UncontrolledTreeEnvironment, Tree, TreeItem } from 'react-complex-tree';
+import { GrammarFilesDataProvider } from "./components/GrammarFilesDataProvider.ts";
 import 'react-complex-tree/lib/style-modern.css';
 // ReactFlow Nodes
 import { Edge } from '@xyflow/react';
@@ -74,6 +75,9 @@ function getCommonBasename(paths: string[]): string {
 
 // Convert userGrammar.grammar_files into the item structure expected by react-complex-tree
 function buildItemsFromUserGrammar(userGrammar: UserGrammar | undefined): Record<string, TreeItem> {
+  // DEBUG
+  console.log("buildItemsFromUserGrammar");
+
   // The keys of userGrammar.grammar_files become child items under the "root"
   const fileNames = Object.keys(userGrammar?.grammar_files ?? []);
 
@@ -159,13 +163,38 @@ function App() {
 
   // Update the content of the active file when the editor changes.
   const handleEditorChange = (value: any) => {
-    if (userGrammar) {
-      userGrammar.grammar_files[String(activeFileIndex)].content = value;
-      userGrammar.grammar_files[String(activeFileIndex)].changed = true;
-    }
+    setUserGrammar(prev => {
+      if (!prev) return prev;
+      const k = String(activeFileIndex);
+      const updated = {
+        ...prev,
+        grammar_files: {
+          ...prev.grammar_files,
+          [k]: { ...prev.grammar_files[k], content: value ?? '', changed: true }
+        }
+      };
+      return updated;
+    });
   };
 
   const [grammarFileLocation, setGrammarFileLocation] = useState("");
+
+  /** How variables "flow"
+   * 
+   * It is necessary to wait for async operations. For this, we use useEffect.
+   * The order of execution is as follows:
+   * 1. The user loads a grammar using the button
+   * 2. This calls load_grammar_file, which changes the variable "grammarFileLocation"
+   * 3. This calls  get_user_grammar, which returns a UserGrammar instance
+   * 
+   * 
+   * Afterwards we can call methods of the ParseInformation instance as we wish.
+   * 4. generate_parser
+   * 5. parse, which parses a specific input
+   * 
+   * 
+   **/
+
 
   async function load_grammar_file() {
     // DEBUG
@@ -183,6 +212,7 @@ function App() {
 
   // parse info and user grammar variables which are filled after loading a grammar and generating a parser
   const [parseInfo, setParseInfo] = useState("");
+  const [generateParserResult, setGenerateParserResult] = useState("");
   const [userGrammar, setUserGrammar] = useState<UserGrammar>();
 
   // expression editor content (other editor is handled separately)
@@ -199,6 +229,20 @@ function App() {
     saveGrammarFiles();
 
     setParseInfo(await invoke("get_parse_info", { grammar: grammarFileLocation }));
+  }
+
+  async function generate_parser_and_save_grammar_files() {
+    await saveGrammarFiles();
+    await generate_parser();
+  }
+
+  async function generate_parser() {
+    // DEBUG
+    console.log("generate_parser");
+
+    setGenerateParserResult(await invoke("generate_parser", {
+      id: parseInfo
+    }));
   }
 
   async function parse_input() {
@@ -225,13 +269,13 @@ function App() {
   // which results in errors
   useEffect(() => {
     if (grammarFileLocation) {
-      get_parse_info();
+      get_parse_info(); // set parseInfo instance ID
     }
   }, [grammarFileLocation]);
 
   useEffect(() => {
     if (parseInfo) {
-      get_user_grammar();
+      get_user_grammar(); // set userGrammar
     }
   }, [parseInfo]);
 
@@ -241,16 +285,19 @@ function App() {
     }
   }, [userGrammar])
 
-  const treeItemsFromGrammar = useMemo(() => buildItemsFromUserGrammar(userGrammar), [userGrammar]);
   // Create the data provider for the tree, which also handles item updates
-  const dataProvider = useMemo(
-    () =>
-      new StaticTreeDataProvider(treeItemsFromGrammar, (item, data) => ({
-        ...item,
-        data
-      })),
-    [treeItemsFromGrammar]
-  );
+  const providerRef = useRef<GrammarFilesDataProvider>();
+  useEffect(() => {
+    if (!userGrammar) return;
+  
+    const map = buildItemsFromUserGrammar(userGrammar);
+  
+    if (!providerRef.current) {
+      providerRef.current = new GrammarFilesDataProvider(map);
+    } else {
+      providerRef.current.setItems(map);
+    }
+  }, [userGrammar]);
 
   /*
   async function get_parse_tree() {
@@ -301,7 +348,7 @@ function App() {
   }
 
   async function get_json_parse_tree() {
-    const {nodes: _n, edges: _e} = transformJsonToParseTree(await invoke("get_json_parse_tree", { id: parseInfo }))
+    const { nodes: _n, edges: _e } = transformJsonToParseTree(await invoke("get_json_parse_tree", { id: parseInfo }))
     setNodes(_n);
     setEdges(_e);
   }
@@ -311,7 +358,7 @@ function App() {
 
   return (
     <div className="bg-white text-zinc-900">
-      <span className="bg-blue-300 bg-violet-300"></span>
+      <span className="bg-violet-300"></span>
       {/* Header */}
       <header className="p-4 border-b border-zinc-200 grid grid-cols-1 gap-2">
         <div className="flex gap-2 w-full h-10 items-center">
@@ -320,13 +367,13 @@ function App() {
             Grammar debugging environment
           </span>
           <Button color="lime" onClick={load_grammar_file}>Load a grammar file</Button>
-          <Button color="indigo" onClick={get_parse_info}>Generate Parser (and save grammar files)</Button>
+          <Button color="indigo" onClick={generate_parser_and_save_grammar_files}>Generate Parser (and save grammar files)</Button>
           <Button color="amber" onClick={parse_input}>Parse Input File</Button>
         </div>
       </header>
       {userGrammar ? <div className="w-screen h-screen">
         <div className="flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
-          
+
         </div>
         <Allotment vertical={true}>
           {/* Augmented Parse Tree */}
@@ -355,13 +402,13 @@ function App() {
               <Allotment.Pane minSize={300} className="h-md bg-blue-400">
                 <h2 className="text-2xl p-2 text-gray-100">Grammar Editor</h2>
                 {/* Grid */}
-                {userGrammar ? (
+                {userGrammar && providerRef.current ? (
                   <div className="flex space-x-4">
                     <div className="w-1/4">
                       {/* File Tree */}
                       <div className="bg-blue-200 p-2 h-full overflow-auto">
                         <UncontrolledTreeEnvironment
-                          dataProvider={dataProvider}
+                          dataProvider={providerRef.current}
                           // @ts-ignore 
                           getItemTitle={item => {
                             const file = userGrammar?.grammar_files[item.index];
