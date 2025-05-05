@@ -8,7 +8,7 @@ import { writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
 import './App.css';
 import Flow from "./components/FlowPlot.tsx";
 import { Button } from './components/ui/button.tsx';
-import { BeakerIcon, FolderOpenIcon } from "@heroicons/react/24/outline";
+import { BeakerIcon, BoltIcon, FolderOpenIcon } from "@heroicons/react/24/outline";
 // Interfaces
 import { UserGrammar } from "./interfaces/UserGrammar.ts";
 import { ParseTreeNode } from "./interfaces/ParseTreeNode.ts";
@@ -200,6 +200,13 @@ function App() {
     // DEBUG
     console.log("load_grammar_file")
 
+    // Reset all state values which hold parse tree information, parseInformation instance id, etc.
+
+    setEdges(undefined);
+    setNodes(undefined);
+    setGenerateParserResult(undefined);
+    setParseInfo(undefined);
+
     const file = await open({
       multiple: false,
       directory: false,
@@ -211,8 +218,8 @@ function App() {
   }
 
   // parse info and user grammar variables which are filled after loading a grammar and generating a parser
-  const [parseInfo, setParseInfo] = useState("");
-  const [generateParserResult, setGenerateParserResult] = useState("");
+  const [parseInfo, setParseInfo] = useState<string | undefined>();
+  const [generateParserResult, setGenerateParserResult] = useState<string | undefined>();
   const [userGrammar, setUserGrammar] = useState<UserGrammar>();
 
   // expression editor content (other editor is handled separately)
@@ -348,7 +355,13 @@ function App() {
   }
 
   async function get_json_parse_tree() {
-    const { nodes: _n, edges: _e } = transformJsonToParseTree(await invoke("get_json_parse_tree", { id: parseInfo }))
+    const _response = await invoke("get_json_parse_tree", { id: parseInfo });
+    
+    // DEBUG
+    console.log("JSON Parse Tree");
+    console.log(_response);
+
+    const { nodes: _n, edges: _e } = transformJsonToParseTree(_response);
     setNodes(_n);
     setEdges(_e);
   }
@@ -378,21 +391,33 @@ function App() {
         <Allotment vertical={true}>
           {/* Augmented Parse Tree */}
           <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
-            {(nodes && edges) ? (<Flow node={nodes} edge={edges} step_backwards={step_backwards} step_forwards={step_forwards} />) : (
-              (
+            {(nodes && edges) /* The input has been parsed and there is a parser */ ? (<Flow node={nodes} edge={edges} step_backwards={step_backwards} step_forwards={step_forwards} />) : (
+              (generateParserResult) ? (
                 <div className="text-center text-xl bg-orange-100 h-full p-4">
                   <button
                     type="button"
                     onClick={parse_input}
                     className="relative block w-full h-full rounded-lg border-2 border-dashed border-gray-300 p-48 text-center hover:border-gray-400 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-hidden"
                   >
-                    <BeakerIcon className="mx-auto size-12" />
+                    <BoltIcon className="mx-auto size-12" />
                     <span className="mt-2 block font-semibold text-gray-900">
-                      The next step is to <span className="underline decoration-4 underline-offset-2 decoration-dotted decoration-blue-700">parse the expression</span>
+                      Now, you can <span className="underline decoration-4 underline-offset-2 decoration-dotted decoration-blue-700">parse the expression</span>
                     </span>
                   </button>
                 </div>
-              )
+              ) : (
+              <div className="text-center text-xl bg-green-100 h-full p-4">
+                <button
+                  type="button"
+                  onClick={generate_parser}
+                  className="relative block w-full h-full rounded-lg border-2 border-dashed border-gray-300 p-48 text-center hover:border-gray-400 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-hidden"
+                >
+                  <BeakerIcon className="mx-auto size-12" />
+                  <span className="mt-2 block font-semibold text-gray-900">
+                    The next step is to <span className="underline decoration-4 underline-offset-2 decoration-dotted decoration-blue-700">generate the parser</span>
+                  </span>
+                </button>
+              </div>)
             )}
           </Allotment.Pane>
 
