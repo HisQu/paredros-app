@@ -13,7 +13,7 @@ python -m venv .venv
 source .venv/bin/activate && pip install -r requirements.txt
 ```
 
-3. Pull the [paredros debugger Python package](https://gitlab.com/mephisto-jena/paredros-debugger) from source and install it using this command:
+3. Pull the [paredros debugger Python package](https://github.com/HisQu/paredros-debugger) from source and install it using this command:
 ```shell
 python3 -m pip install --editable ~/paredros-debugger
 ```
