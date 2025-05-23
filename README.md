@@ -5,7 +5,7 @@
 1. Create a virtual environment for Python, which will be used for the ANTLR runtime.
 The path should be the same so that it works with the tauri app.
 ```shell
-python -m venv .venv
+python3 -m venv .venv
 ```
 
 2. Source the created venv and install the `requirements.txt` using 
