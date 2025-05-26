@@ -11,7 +11,7 @@ const ParseTreeNodeComponent = ({
   targetPosition,
   id,
 }: NodeProps<ParseTreeNode>) => {
-  // If targetPosition is 'left', assume horizontal layout; otherwise, vertical.
+  // If the targetPosition is 'left', assume a horizontal layout; otherwise, vertical.
   const isHorizontal = targetPosition === 'left';
 
   const containerStyle: React.CSSProperties = {

@@ -17,7 +17,7 @@ import {
 import dagre from "@dagrejs/dagre";
 import "@xyflow/react/dist/style.css";
 
-import { Button } from "../components/ui/button.tsx";
+import { Button } from "./ui/button.tsx";
 import { nodeHeight, nodeWidth } from "../constants";
 import { ParseTreeNode } from "../interfaces/ParseTreeNode";
 import ParseTreeNodeComponent from "../components/ParseTreeNodeComponent";

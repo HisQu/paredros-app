@@ -194,7 +194,7 @@ fn get_json_parse_tree(id: usize, store: State<ParseInfoStore>) -> Result<serde_
     
     Python::with_gil(|py| {
         // Get the `get_json` attribute from the Python object.
-        let get_json_method = parse_info.getattr(py, "get_json").map_err(|e| e.to_string())?;
+        let get_json_method = parse_info.getattr(py, "get_current_tree_json").map_err(|e| e.to_string())?;
         // Call the method with no arguments.
         let json_py = get_json_method.call0(py).map_err(|e| e.to_string())?;
         // Extract the returned string.

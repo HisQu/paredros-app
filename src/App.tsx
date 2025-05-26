@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 // Tauri
 import { invoke } from "@tauri-apps/api/core";
-import * as path from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
 import { writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
 // UI Components
@@ -233,7 +232,7 @@ function App() {
     setNodes(undefined);
     setEdges(undefined);
 
-    saveGrammarFiles();
+    await saveGrammarFiles();
 
     setParseInfo(await invoke("get_parse_info", { grammar: grammarFileLocation }));
   }
@@ -256,12 +255,10 @@ function App() {
     // save the file to the temporary location
     await writeTextFile(tempFileName, expressionContent, { baseDir: BaseDirectory.Temp });
 
-    const _p = await path.join(await path.tempDir(), tempFileName);
-
     // call parse input
     const parse_input_result = await invoke("parse_input", {
       id: parseInfo,
-      input: _p
+      input: expressionContent
     });
 
     // DEBUG
@@ -371,6 +368,9 @@ function App() {
 
   return (
     <div className="bg-white text-zinc-900">
+      {/* tailwindcss Safelist */}
+      <span className={"bg-blue-300 bg-blue-400 bg-violet-300 bg-violet-400"}></span>
+
       <span className="bg-violet-300"></span>
       {/* Header */}
       <header className="p-4 border-b border-zinc-200 grid grid-cols-1 gap-2">
@@ -391,7 +391,7 @@ function App() {
         <Allotment vertical={true}>
           {/* Augmented Parse Tree */}
           <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
-            {(nodes && edges) /* The input has been parsed and there is a parser */ ? (<Flow node={nodes} edge={edges} step_backwards={step_backwards} step_forwards={step_forwards} />) : (
+            {(nodes && edges) /* The input has been parsed, and there is a parser */ ? (<Flow node={nodes} edge={edges} step_backwards={step_backwards} step_forwards={step_forwards} />) : (
               (generateParserResult) ? (
                 <div className="text-center text-xl bg-orange-100 h-full p-4">
                   <button
