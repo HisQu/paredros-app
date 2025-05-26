@@ -12,7 +12,7 @@ python -m venv .venv
 source .venv/bin/activate && pip install -r requirements.txt
 ```
 
-3. Install all requirements for Tauri development, see [Prerequisites](https://v1.tauri.app/v1/guides/getting-started/prerequisites).
+3. Install all requirements for Tauri development, see [Prerequisites](https://tauri.app/start/prerequisites/).
 
 4. Install all node packages:
 ```shell
