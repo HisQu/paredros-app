@@ -1,6 +1,19 @@
 # Paredros App
 
+## Setup for Deployment
+Currently the newest version can be obtained via the [Github build action](https://github.com/HisQu/paredros-app/actions), triggered by any new commits or manually.
+Download the artifact for your system and run it.
+
 ## Setting up for development and building
+
+### Prerequisites
+The following needs to be installed for development:
+- `Antlr4 & paredros-debugger` will be installed via the `requirements.txt`
+- [Python 3.10](https://www.python.org/downloads/) or above
+- [npm](https://nodejs.org/en/download) or [yarn](https://classic.yarnpkg.com/lang/en/) for java-script package management
+- [Tauri](https://v1.tauri.app/v1/guides/getting-started/prerequisites) prerequisites for development
+
+### Step by Step
 
 1. Create a virtual environment for Python, which will be used for the ANTLR runtime.
 The path should be the same so that it works with the tauri app.
@@ -12,15 +25,13 @@ python -m venv .venv
 source .venv/bin/activate && pip install -r requirements.txt
 ```
 
-3. Install all requirements for Tauri development, see [Prerequisites](https://v1.tauri.app/v1/guides/getting-started/prerequisites).
-
-4. Install all node packages:
+3. Install all node packages:
 ```shell
 yarn # OR
 npm i
 ```
 
-5. Start the tauri installation with the command
+4. Start the tauri installation with the command
 ```shell
 yarn run tauri dev # OR
 npm run tauri dev
