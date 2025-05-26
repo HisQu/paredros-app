@@ -391,7 +391,7 @@ function App() {
         <Allotment vertical={true}>
           {/* Augmented Parse Tree */}
           <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
-            {(nodes && edges) /* The input has been parsed, and there is a parser */ ? (<Flow node={nodes} edge={edges} step_backwards={step_backwards} step_forwards={step_forwards} />) : (
+            {(nodes && edges) /* The input has been parsed, and there is a parser */ ? (<Flow node={nodes} edge={edges} step_backwards={step_backwards} step_forwards={step_forwards} current_step={2} />) : (
               (generateParserResult) ? (
                 <div className="text-center text-xl bg-orange-100 h-full p-4">
                   <button
