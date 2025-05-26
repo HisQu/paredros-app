@@ -337,7 +337,7 @@ const Flow = ({
         <Button color="green" onClick={step_backwards}>Step Back</Button>
         <Button color="green" onClick={step_forwards}>Step Forward</Button>
         <Button color="fuchsia" onClick={expand_all}>Expand All</Button>
-        <Input type={"number"} min={0} max={100} step={1} value={current_step} />
+        <Input type={"number"} min={0} max={100} step={1} defaultValue={current_step} onChange={console.log} />
       </Panel>
       <Controls />
       <MiniMap />

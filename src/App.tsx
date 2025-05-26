@@ -1,29 +1,29 @@
-import { useState, useEffect, useRef } from "react";
+import {useEffect, useRef, useState} from "react";
 // Tauri
-import { invoke } from "@tauri-apps/api/core";
-import { open } from '@tauri-apps/plugin-dialog';
-import { writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
+import {invoke} from "@tauri-apps/api/core";
+import {open} from '@tauri-apps/plugin-dialog';
+import {BaseDirectory, writeTextFile} from '@tauri-apps/plugin-fs';
 // UI Components
 import './App.css';
 import Flow from "./components/FlowPlot.tsx";
-import { Button } from './components/ui/button.tsx';
-import { BeakerIcon, BoltIcon, FolderOpenIcon } from "@heroicons/react/24/outline";
+import {Button} from './components/ui/button.tsx';
+import {BeakerIcon, BoltIcon, FolderOpenIcon} from "@heroicons/react/24/outline";
 // Interfaces
-import { UserGrammar } from "./interfaces/UserGrammar.ts";
-import { ParseTreeNode } from "./interfaces/ParseTreeNode.ts";
+import {ParseStepInfo, UserGrammar} from "./interfaces/UserGrammar.ts";
+import {ParseTreeNode} from "./interfaces/ParseTreeNode.ts";
 // Mockup/Helper values
-import { tempFileName, antlr4MonarchLanguage, sampleInputText } from "./constants";
+import {antlr4MonarchLanguage, sampleInputText, tempFileName} from "./constants";
 // Code Editor
-import Editor from '@monaco-editor/react';
+import Editor, {OnMount} from '@monaco-editor/react';
 // Allotment (Resizable Panes)
-import { Allotment } from "allotment";
+import {Allotment} from "allotment";
 import "allotment/dist/style.css";
 // React Complex Tree
-import { UncontrolledTreeEnvironment, Tree, TreeItem } from 'react-complex-tree';
-import { GrammarFilesDataProvider } from "./components/GrammarFilesDataProvider.ts";
+import {Tree, TreeItem, UncontrolledTreeEnvironment} from 'react-complex-tree';
+import {GrammarFilesDataProvider} from "./components/GrammarFilesDataProvider.ts";
 import 'react-complex-tree/lib/style-modern.css';
 // ReactFlow Nodes
-import { Edge } from '@xyflow/react';
+import {Edge} from '@xyflow/react';
 // END IMPORTS and constants
 
 const readTemplate = (template: any, data: any = { items: {} }): any => {
@@ -55,6 +55,11 @@ function getCommonBasename(paths: string[]): string {
 
   // Normalize paths and split into components
   const splitPaths = paths.map(path => path.split('/'));
+
+  if (paths.length === 1) {
+    const _p = splitPaths[1]
+    return _p[_p.length] // there is only one file, return the basename
+  }
 
   // Find the common base path
   let minLength = Math.min(...splitPaths.map(p => p.length));
@@ -165,15 +170,26 @@ function App() {
     setUserGrammar(prev => {
       if (!prev) return prev;
       const k = String(activeFileIndex);
-      const updated = {
+      return {
         ...prev,
         grammar_files: {
           ...prev.grammar_files,
-          [k]: { ...prev.grammar_files[k], content: value ?? '', changed: true }
+          [k]: {...prev.grammar_files[k], content: value ?? '', changed: true}
         }
       };
-      return updated;
     });
+  };
+
+  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+
+  const decorationCollectionRef = useRef();
+
+  const handleEditorDidMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+
+    // You can now use editor.deltaDecorations here or elsewhere
   };
 
   const [grammarFileLocation, setGrammarFileLocation] = useState("");
@@ -220,6 +236,10 @@ function App() {
   const [parseInfo, setParseInfo] = useState<string | undefined>();
   const [generateParserResult, setGenerateParserResult] = useState<string | undefined>();
   const [userGrammar, setUserGrammar] = useState<UserGrammar>();
+  // values which change with each step
+  const [nodes, setNodes] = useState<ParseTreeNode[]>();
+  const [edges, setEdges] = useState<Edge[]>();
+  const [info, setInfo] = useState<ParseStepInfo>();
 
   // expression editor content (other editor is handled separately)
   const [expressionContent, setExpressionContent] = useState(sampleInputText);
@@ -353,7 +373,7 @@ function App() {
 
   async function get_json_parse_tree() {
     const _response = await invoke("get_json_parse_tree", { id: parseInfo });
-    
+
     // DEBUG
     console.log("JSON Parse Tree");
     console.log(_response);
@@ -361,10 +381,32 @@ function App() {
     const { nodes: _n, edges: _e } = transformJsonToParseTree(_response);
     setNodes(_n);
     setEdges(_e);
+
+    await get_parse_step_info()
   }
 
-  const [nodes, setNodes] = useState<ParseTreeNode[]>();
-  const [edges, setEdges] = useState<Edge[]>();
+  async function get_parse_step_info() {
+    const _response = await invoke<ParseStepInfo>("get_parse_step_info", {id: parseInfo});
+
+    // DEBUG
+    console.log("Parse Step Info");
+    console.log(_response);
+
+    setInfo(_response);
+  }
+
+  function testDecoration() {
+    if (monacoRef.current) {
+      decorationCollectionRef.current = editorRef.current.createDecorationsCollection([
+        {
+          range: new monacoRef.current.Range(3, 1, 3, 1),
+          options: {
+            beforeContentClassName: "my-inline-label"
+          }
+        }
+      ]);
+    }
+  }
 
   return (
     <div className="bg-white text-zinc-900">
@@ -391,7 +433,8 @@ function App() {
         <Allotment vertical={true}>
           {/* Augmented Parse Tree */}
           <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
-            {(nodes && edges) /* The input has been parsed, and there is a parser */ ? (<Flow node={nodes} edge={edges} step_backwards={step_backwards} step_forwards={step_forwards} current_step={2} />) : (
+            {(nodes && edges) /* The input has been parsed, and there is a parser */
+                ? (<Flow node={nodes} edge={edges} step_backwards={step_backwards} step_forwards={step_forwards} current_step={parseInt(info?.step_id || "")} />) : (
               (generateParserResult) ? (
                 <div className="text-center text-xl bg-orange-100 h-full p-4">
                   <button
@@ -464,11 +507,13 @@ function App() {
                     </div>
                     {/* Grammar Editor */}
                     <div className="w-3/4">
+                      <Button color={"amber"} onClick={testDecoration}>Test</Button>
                       <Editor
                         className="w-full"
                         height="82vh"
                         language={"antlr4"}
-                        value={userGrammar.grammar_files[String(activeFileIndex)]?.content ?? ""}
+                        onMount={handleEditorDidMount}
+                        defaultValue={userGrammar.grammar_files[String(activeFileIndex)]?.content ?? ""}
                         onChange={handleEditorChange}
                         beforeMount={(monaco) => {
                           // Register the custom ANTLR4 language with Monaco
