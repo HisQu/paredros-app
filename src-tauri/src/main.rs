@@ -12,6 +12,7 @@ use std::{
     },
 };
 use tauri::State;
+use pythonize::depythonize;
 
 /// A store for Python ParseInformation instances.
 struct ParseInfoStore {
@@ -191,16 +192,17 @@ fn get_user_grammar(id: usize, store: State<ParseInfoStore>) -> Result<UserGramm
 fn get_json_parse_tree(id: usize, store: State<ParseInfoStore>) -> Result<serde_json::Value, String> {
     let nodes = store.nodes.lock().unwrap();
     let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
-    
+
     Python::with_gil(|py| {
-        // Get the `get_json` attribute from the Python object.
-        let get_json_method = parse_info.getattr(py, "get_current_tree_json").map_err(|e| e.to_string())?;
-        // Call the method with no arguments.
-        let json_py = get_json_method.call0(py).map_err(|e| e.to_string())?;
-        // Extract the returned string.
-        let json_str: String = json_py.extract(py).map_err(|e| e.to_string())?;
-        // Parse the JSON string into a serde_json::Value.
-        serde_json::from_str(&json_str).map_err(|e| e.to_string())
+        let dict_obj = parse_info
+            .getattr(py, "get_current_tree_dict")    // ← map_err here
+            .map_err(|e| e.to_string())?
+            .call0(py)
+            .map_err(|e| e.to_string())?;
+
+        let dict_bound = dict_obj.bind(py);          // Bound<'py, PyAny>
+        depythonize::<serde_json::Value>(&dict_bound)
+            .map_err(|e| e.to_string())
     })
 }
 
@@ -239,7 +241,6 @@ fn main() {
 
     tauri::Builder::default()
         .setup(|_app| {
-            #[cfg(debug_assertions)]
             Ok(())
         })
         .plugin(tauri_plugin_fs::init())
