@@ -25,13 +25,15 @@ python -m venv .venv
 source .venv/bin/activate && pip install -r requirements.txt
 ```
 
-3. Install all node packages:
+3. Install all requirements for Tauri development, see [Prerequisites](https://tauri.app/start/prerequisites/).
+
+4. Install all node packages:
 ```shell
 yarn # OR
 npm i
 ```
 
-4. Start the tauri installation with the command
+5. Start the tauri installation with the command
 ```shell
 yarn run tauri dev # OR
 npm run tauri dev

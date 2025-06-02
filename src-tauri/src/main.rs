@@ -12,6 +12,7 @@ use std::{
     },
 };
 use tauri::State;
+use pythonize::depythonize;
 
 /// A store for Python ParseInformation instances.
 struct ParseInfoStore {
@@ -104,20 +105,6 @@ fn parse_input(
     })
 }
 
-/// Retrieve a string representation of the parse tree from the stored ParseInformation instance.
-/// (Assumes that your ParseInformation class has a get_parse_tree method.)
-#[tauri::command]
-fn get_parse_tree(id: usize, store: State<ParseInfoStore>) -> Result<String, String> {
-    let nodes = store.nodes.lock().unwrap();
-    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
-    Python::with_gil(|py| {
-        let res = parse_info
-            .getattr(py, "parse_tree")
-            .map_err(|e| e.to_string())?;
-        res.extract::<String>(py).map_err(|e| e.to_string())
-    })
-}
-
 /// This class mirrors the Python class
 #[derive(Debug, FromPyObject, Serialize)]
 struct ParseTreeNode {
@@ -171,6 +158,50 @@ struct UserGrammar {
     processed_files: HashSet<String>,
 }
 
+/// Mirrors the `possible_transitions` entries
+#[derive(Debug, FromPyObject, Serialize)]
+#[pyo3(from_item_all)]
+struct Transition {
+    target_state: usize,
+    matches: Vec<String>,
+}
+
+/// Mirrors the `grammar_rule_location` sub‐dict
+#[derive(Debug, FromPyObject, Serialize)]
+#[pyo3(from_item_all)]
+struct GrammarRuleLocation {
+    name: String,
+    content: String,
+    file_path: String,
+    start_line: usize,
+    end_line: usize,
+    start_pos: usize,
+    end_pos: usize,
+}
+
+/// Mirrors the ParseStepInfo return type of `get_current_parse_step_info`
+#[derive(Debug, FromPyObject, Serialize)]
+#[pyo3(from_item_all)]
+struct ParseStepInfo {
+    step_id: String,
+    node_type: String,
+    rule_name: Option<String>,
+    rule_stack: Vec<String>,
+    state: String,
+    current_token_repr: String,
+    token_index: usize,
+    chosen_transition_index: Option<i32>,
+    input_text_context: String,
+    lookahead_repr: String,
+    matching_error: bool,
+    is_error_node: bool,
+    next_input_token: Option<String>,
+    next_input_literal: Option<String>,
+    possible_transitions: Option<Vec<Transition>>,
+    grammar_rule_location: Option<GrammarRuleLocation>,
+    input_context_snippet: Option<String>,
+}
+
 /// Gets the property "grammar" from a ParseInformation instance
 #[tauri::command]
 fn get_user_grammar(id: usize, store: State<ParseInfoStore>) -> Result<UserGrammar, String> {
@@ -186,21 +217,38 @@ fn get_user_grammar(id: usize, store: State<ParseInfoStore>) -> Result<UserGramm
     })
 }
 
+/// Gets the meta information dictionary with 
+#[tauri::command]
+fn get_parse_step_info(id: usize, store: State<ParseInfoStore>) -> Result<ParseStepInfo, String> {
+    let nodes = store.nodes.lock().unwrap();
+    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
+
+    Python::with_gil(|py| {
+        let py_step = parse_info
+            .getattr(py, "get_current_parse_step_info")
+            .map_err(|e| e.to_string())?
+            .call0(py)
+            .map_err(|e| e.to_string())?;
+        py_step.extract(py).map_err(|e| e.to_string())
+    })
+}
+
 /// Gets a JSON representation of the current (meaning partial) ParseTree from a ParseInformation instance
 #[tauri::command]
 fn get_json_parse_tree(id: usize, store: State<ParseInfoStore>) -> Result<serde_json::Value, String> {
     let nodes = store.nodes.lock().unwrap();
     let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
-    
+
     Python::with_gil(|py| {
-        // Get the `get_json` attribute from the Python object.
-        let get_json_method = parse_info.getattr(py, "get_current_tree_json").map_err(|e| e.to_string())?;
-        // Call the method with no arguments.
-        let json_py = get_json_method.call0(py).map_err(|e| e.to_string())?;
-        // Extract the returned string.
-        let json_str: String = json_py.extract(py).map_err(|e| e.to_string())?;
-        // Parse the JSON string into a serde_json::Value.
-        serde_json::from_str(&json_str).map_err(|e| e.to_string())
+        let dict_obj = parse_info
+            .getattr(py, "get_current_tree_dict")
+            .map_err(|e| e.to_string())?
+            .call0(py)
+            .map_err(|e| e.to_string())?;
+
+        let dict_bound = dict_obj.bind(py);
+        depythonize::<serde_json::Value>(&dict_bound)
+            .map_err(|e| e.to_string())
     })
 }
 
@@ -239,7 +287,6 @@ fn main() {
 
     tauri::Builder::default()
         .setup(|_app| {
-            #[cfg(debug_assertions)]
             Ok(())
         })
         .plugin(tauri_plugin_fs::init())
@@ -252,8 +299,8 @@ fn main() {
             get_parse_info,
             generate_parser,
             parse_input,
-            get_parse_tree,
             get_user_grammar,
+            get_parse_step_info,
             step_forwards,
             step_backwards,
             get_json_parse_tree

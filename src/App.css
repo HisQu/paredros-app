@@ -116,3 +116,10 @@
 .react-flow__edge-textbg {
     fill: #f7f9fb;
   }
+
+.my-inline-label::before {
+    content: "🛈 Hint: ";
+    color: gray;
+    font-style: italic;
+    margin-right: 6px;
+}

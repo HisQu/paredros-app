@@ -8,7 +8,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-# The `_lib` suffix may seem redundant but it is necessary
+# The `_lib` suffix may seem redundant, but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "paredros_app_lib"
@@ -24,7 +24,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 once_cell = "1.17.1"
 uuid = { version = "1.3", features = ["v4"] }
-pyo3 = { version = "0.23.4", features = ["auto-initialize"] } # https://github.com/PyO3/pyo3/discussions/2995
+pyo3 = { version = "0.25", features = ["auto-initialize"] } # https://github.com/PyO3/pyo3/discussions/2995
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
-
+pythonize = "0.25"

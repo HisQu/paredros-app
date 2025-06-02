@@ -21,6 +21,7 @@ import { Button } from "./ui/button.tsx";
 import { nodeHeight, nodeWidth } from "../constants";
 import { ParseTreeNode } from "../interfaces/ParseTreeNode";
 import ParseTreeNodeComponent from "../components/ParseTreeNodeComponent";
+import {Input} from "./ui/input.tsx";
 
 const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
@@ -87,7 +88,7 @@ const getVisibleNodes = (
       ...node,
       data: {
         ...node.data,
-        hasChildren: nodeInfo?.children.length ? true : false,
+        hasChildren: !!nodeInfo?.children.length,
         isExpanded: expandedNodes.has(node.id),
       }
     };
@@ -155,12 +156,14 @@ const Flow = ({
   node: paramNodes,
   edge: paramEdges,
   step_backwards,
-  step_forwards
+  step_forwards,
+  current_step
 }: {
   node: ParseTreeNode[];
   edge: Edge[];
   step_forwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
   step_backwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  current_step: number;
 }) => {
   // Track expanded nodes in a Set, with root nodes expanded by default
   const [expandedNodes, setExpandedNodes] = useState(() => {
@@ -334,6 +337,7 @@ const Flow = ({
         <Button color="green" onClick={step_backwards}>Step Back</Button>
         <Button color="green" onClick={step_forwards}>Step Forward</Button>
         <Button color="fuchsia" onClick={expand_all}>Expand All</Button>
+        <Input type={"number"} min={0} max={100} step={1} defaultValue={current_step} onChange={console.log} />
       </Panel>
       <Controls />
       <MiniMap />
