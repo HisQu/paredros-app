@@ -22,6 +22,7 @@ import { nodeHeight, nodeWidth } from "../constants";
 import { ParseTreeNode } from "../interfaces/ParseTreeNode";
 import ParseTreeNodeComponent from "../components/ParseTreeNodeComponent";
 import {Input} from "./ui/input.tsx";
+import {Badge} from "./ui/badge.tsx";
 
 const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
@@ -157,13 +158,15 @@ const Flow = ({
   edge: paramEdges,
   step_backwards,
   step_forwards,
-  current_step
+  current_step,
+  step_action,
 }: {
   node: ParseTreeNode[];
   edge: Edge[];
   step_forwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
   step_backwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
-  current_step: number;
+  current_step?: string;
+  step_action: (step_id: number) => void;
 }) => {
   // Track expanded nodes in a Set, with root nodes expanded by default
   const [expandedNodes, setExpandedNodes] = useState(() => {
@@ -312,6 +315,13 @@ const Flow = ({
     );
   }, [paramNodes, paramEdges, setNodes]);
 
+  function onChangeListener(event: React.ChangeEvent<HTMLInputElement>) {
+    const value = parseInt(event.target.value, 10);
+    if (!isNaN(value)) {
+      step_action(value);
+    }
+  }
+
   return (
     <ReactFlow
       nodes={nodes}
@@ -336,8 +346,9 @@ const Flow = ({
         <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
         <Button color="green" onClick={step_backwards}>Step Back</Button>
         <Button color="green" onClick={step_forwards}>Step Forward</Button>
+        <Badge color={"pink"}><b>Current Step is: {current_step}</b></Badge>
+        <Input type={"number"} min={0} max={500} step={1} value={parseInt(current_step || "0")} onChange={onChangeListener} />
         <Button color="fuchsia" onClick={expand_all}>Expand All</Button>
-        <Input type={"number"} min={0} max={100} step={1} defaultValue={current_step} onChange={console.log} />
       </Panel>
       <Controls />
       <MiniMap />

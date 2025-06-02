@@ -97,11 +97,34 @@ fn parse_input(
     let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
 
     Python::with_gil(|py| {
+        // parse the input
         let func = parse_info.getattr(py, "parse").map_err(|e| e.to_string())?;
-        
         func.call1(py, (input,)).map_err(|e| e.to_string())?;
 
+        // go to step 0 in the parse process
+        let func2 = parse_info.getattr(py, "go_to_step").map_err(|e| e.to_string())?;
+        func2.call1(py, (0,)).map_err(|e| e.to_string())?;
+
         Ok("Parsed successfully".to_string())
+    })
+}
+
+/// Jump to a specific step
+#[tauri::command]
+fn go_to_step(
+    id: usize,
+    step_id: usize,
+    store: State<ParseInfoStore>,
+) -> Result<String, String> {
+        let nodes = store.nodes.lock().unwrap();
+    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
+
+    Python::with_gil(|py| {
+        let func = parse_info.getattr(py, "go_to_step").map_err(|e| e.to_string())?;
+        
+        func.call1(py, (step_id,)).map_err(|e| e.to_string())?;
+
+        Ok("Went to indicated step successfully".to_string())
     })
 }
 
@@ -299,6 +322,7 @@ fn main() {
             get_parse_info,
             generate_parser,
             parse_input,
+            go_to_step,
             get_user_grammar,
             get_parse_step_info,
             step_forwards,

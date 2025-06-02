@@ -163,6 +163,19 @@ function App() {
         }));
     }
 
+    async function go_to_step(step_id: number) {
+        // DEBUG
+        console.log("go_to_step", step_id);
+
+        await invoke("go_to_step", {
+            id: parseInfo,
+            stepId: step_id,
+            step_id: step_id,
+        });
+
+        await get_json_parse_tree();
+    }
+
     async function parse_input() {
         // save the file to the temporary location
         await writeTextFile(tempFileName, expressionContent, {baseDir: BaseDirectory.Temp});
@@ -340,7 +353,7 @@ function App() {
                             ? (hasChangedGrammarFile(userGrammar)
                                 ? (<ParserInputOverlay onClick={generate_parser_save_grammar_files_parse_input}/>)
                                 : <Flow node={nodes} edge={edges} step_backwards={step_backwards}
-                                        step_forwards={step_forwards} current_step={parseInt(info?.step_id || "")}/>)
+                                        step_forwards={step_forwards} current_step={info?.step_id} step_action={go_to_step}/>)
                             : ((generateParserResult)
                                     ? (<ParseExpressionOverlay onClick={parse_input}/>)
                                     : (<GenerateParserOverlay onClick={generate_parser}/>)
