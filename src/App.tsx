@@ -418,12 +418,12 @@ function App() {
                                     <h2 className="text-2xl text-white">Expression</h2>
                                 </div>
                                 <Editor height="90vh"
-                                        defaultLanguage="plain"
+                                        defaultLanguage="xml"
                                         options={{
                                             wordWrap: "on",
                                         }}
-                                        onChange={(value) => setExpressionContent(value || "")}
-                                        defaultValue={sampleInputText}/>
+                                        defaultValue={sampleInputText}
+                                        onChange={(value) => setExpressionContent(value || "")}/>
                             </Allotment.Pane>
                         </Allotment>
                     </Allotment.Pane>
