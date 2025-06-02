@@ -257,8 +257,7 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
             [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges]
         );
 
-        // Function to toggle expansion of all nodes
-        const expand_all = useCallback(() => {
+        const toggle_expand = useCallback(() => {
             // Create a set of all node IDs from the input nodes
             const allNodeIds = new Set(paramNodes.map(node => node.id));
             // If all nodes are already expanded, collapse back to only the root nodes.
@@ -272,6 +271,12 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
                 setExpandedNodes(allNodeIds);
             }
         }, [paramNodes, paramEdges, expandedNodes]);
+
+        // Function to toggle expansion of all nodes
+        const expand_all = () => {
+            const allNodeIds = new Set(paramNodes.map(node => node.id));
+            setExpandedNodes(allNodeIds);
+        }
 
         // When a node drag starts, store the current positions for all nodes.
         const onNodeDragStart = useCallback((_: any, __: any) => {
@@ -335,6 +340,14 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
             }
         }
 
+        useEffect(() => {
+            // DEBUG
+            if (expand_all) {
+                console.log("Expand All")
+                expand_all();
+            }
+        }, [paramNodes]);
+
         // Expose methods to parent
         useImperativeHandle(ref, () => ({
             expandAll: automaticExpandingWrapper,
@@ -367,7 +380,7 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
                     <Badge color={"pink"}><b>Current Step is: {current_step}</b></Badge>
                     <Input type={"number"} min={0} max={500} step={1} value={parseInt(current_step || "0")}
                            onChange={onChangeListener}/>
-                    <Button color="fuchsia" onClick={expand_all}>Expand All</Button>
+                    <Button color="fuchsia" onClick={toggle_expand}>Toggle Expand</Button>
                     <CheckboxGroup>
                         <CheckboxField>
                             <Checkbox onChange={handleAutomaticExpandingChange} defaultChecked={true}/>
