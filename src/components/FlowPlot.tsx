@@ -12,7 +12,7 @@ import {
     Panel,
     ConnectionLineType,
     Edge,
-    Position,
+    Position
 } from "@xyflow/react";
 import dagre from "@dagrejs/dagre";
 import "@xyflow/react/dist/style.css";
@@ -169,6 +169,8 @@ export type FlowHandle = {
 
 const Flow = forwardRef<FlowHandle, FlowProps>(
     ({node: paramNodes, edge: paramEdges, step_backwards, step_forwards, current_step, step_action}, ref) => {
+        const rfInstance = useRef<any | null>(null); // not pretty, but typing did not work
+
         // Track expanded nodes in a Set, with root nodes expanded by default
         const [expandedNodes, setExpandedNodes] = useState(() => {
             const rootNodeIds = paramNodes
@@ -338,14 +340,19 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
             if (automaticExpanding) {
                 expand_all();
             }
+            if (rfInstance.current) {
+                // DEBUG
+                console.log("Fit View")
+                rfInstance.current.fitView();
+            }
         }
 
+        // when the input nodes change, run several actions
         useEffect(() => {
+
             // DEBUG
-            if (expand_all) {
-                console.log("Expand All")
-                expand_all();
-            }
+            console.log("automatic expanding wrapper")
+            automaticExpandingWrapper();
         }, [paramNodes]);
 
         // Expose methods to parent
@@ -355,6 +362,9 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
 
         return (
             <ReactFlow
+                onInit={(inst) => {
+                    rfInstance.current = inst;
+                }}
                 nodes={nodes}
                 edges={edges}
                 onNodesChange={onNodesChange}

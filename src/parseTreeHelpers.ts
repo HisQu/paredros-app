@@ -25,7 +25,7 @@ export function transformJsonToParseTree(root: any): { nodes: ParseTreeNode[]; e
                 nodeType: node.node_type,
                 ruleName: node.rule_name,
                 token: node.token,
-                traceSteps: node.trace_steps
+                traceSteps: node.trace_info
             }
         });
 
