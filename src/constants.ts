@@ -109,4 +109,4 @@ const nodeHeight = 36;
 
 const tempFileName = "temporaryParedrosInput.txt";
 
-export { tempFileName, nodeWidth, nodeHeight, initialNodes, initialEdges, sampleParseTree, sampleInputText, antlr4MonarchLanguage }
+export { tempFileName, nodeWidth, nodeHeight, initialNodes, initialEdges, sampleInputText, antlr4MonarchLanguage }
