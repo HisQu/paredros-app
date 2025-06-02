@@ -5,7 +5,7 @@ import {open} from '@tauri-apps/plugin-dialog';
 import {BaseDirectory, writeTextFile} from '@tauri-apps/plugin-fs';
 // UI Components
 import './App.css';
-import Flow from "./components/FlowPlot.tsx";
+import Flow, {FlowHandle} from "./components/FlowPlot.tsx";
 import {Button} from './components/ui/button.tsx';
 import UnhandledRejectionDialog from "./components/UnhandledRejectionDialog.tsx";
 // Interfaces
@@ -56,9 +56,11 @@ function App() {
         });
     };
 
+    // Refs / References declarations
     const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
     const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
-
+    const flowRef = useRef<FlowHandle>(null);
+    const providerRef = useRef<GrammarFilesDataProvider>();
     /*const decorationCollectionRef = useRef();*/
 
     const handleEditorDidMount: OnMount = (editor, monaco) => {
@@ -84,6 +86,13 @@ function App() {
      *
      **/
 
+    function resetStateVariables() {
+        setInfo(undefined);
+        setEdges(undefined);
+        setNodes(undefined);
+        setGenerateParserResult(undefined);
+    }
+
 
     async function load_grammar_file() {
         // DEBUG
@@ -98,9 +107,7 @@ function App() {
             // DEBUG
             console.log("set new grammar file", file);
             // Reset all state values which hold parse tree information, parseInformation instance id, etc.
-            setEdges(undefined);
-            setNodes(undefined);
-            setGenerateParserResult(undefined);
+            resetStateVariables();
 
             setGrammarFileLocation(file);
         }
@@ -163,6 +170,27 @@ function App() {
         }));
     }
 
+    async function go_to_step(step_id: number) {
+        // DEBUG
+        console.log("go_to_step", step_id);
+
+        await invoke("go_to_step", {
+            id: parseInfo,
+            stepId: step_id,
+            step_id: step_id,
+        });
+
+        // load the new parse tree
+        await get_json_parse_tree();
+
+        // expand all nodes in the parse tree plot
+        if (flowRef.current) {
+            // DEBUG
+            console.log("expandAll");
+            flowRef.current.expandAll();
+        }
+    }
+
     async function parse_input() {
         // save the file to the temporary location
         await writeTextFile(tempFileName, expressionContent, {baseDir: BaseDirectory.Temp});
@@ -204,7 +232,6 @@ function App() {
     }, [userGrammar])
 
     // Create the data provider for the tree, which also handles item updates
-    const providerRef = useRef<GrammarFilesDataProvider>();
     useEffect(() => {
         if (!userGrammar) return;
 
@@ -314,7 +341,6 @@ function App() {
             {/* tailwindcss Safelist */}
             <span className={"bg-blue-300 bg-blue-400 bg-violet-300 bg-violet-400"}></span>
 
-            <span className="bg-violet-300"></span>
             {/* Header */}
             <header className="p-4 border-b border-zinc-200 grid grid-cols-1 gap-2">
                 <div className="flex gap-2 w-full h-10 items-center">
@@ -331,7 +357,7 @@ function App() {
             </header>
             {userGrammar ? <div className="w-screen h-screen">
                 <div className="flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
-
+                    {info?.input_context_snippet ? info.input_context_snippet : ""}
                 </div>
                 <Allotment vertical={true}>
                     {/* Augmented Parse Tree */}
@@ -339,8 +365,8 @@ function App() {
                         {(nodes && edges) /* The input has been parsed, and there is a parser */
                             ? (hasChangedGrammarFile(userGrammar)
                                 ? (<ParserInputOverlay onClick={generate_parser_save_grammar_files_parse_input}/>)
-                                : <Flow node={nodes} edge={edges} step_backwards={step_backwards}
-                                        step_forwards={step_forwards} current_step={parseInt(info?.step_id || "")}/>)
+                                : <Flow ref={flowRef} node={nodes} edge={edges} step_backwards={step_backwards}
+                                        step_forwards={step_forwards} current_step={info?.step_id} step_action={go_to_step}/>)
                             : ((generateParserResult)
                                     ? (<ParseExpressionOverlay onClick={parse_input}/>)
                                     : (<GenerateParserOverlay onClick={generate_parser}/>)
