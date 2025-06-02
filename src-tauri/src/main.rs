@@ -160,6 +160,7 @@ struct UserGrammar {
 
 /// Mirrors the `possible_transitions` entries
 #[derive(Debug, FromPyObject, Serialize)]
+#[pyo3(from_item_all)]
 struct Transition {
     target_state: usize,
     matches: Vec<String>,
@@ -167,6 +168,7 @@ struct Transition {
 
 /// Mirrors the `grammar_rule_location` sub‐dict
 #[derive(Debug, FromPyObject, Serialize)]
+#[pyo3(from_item_all)]
 struct GrammarRuleLocation {
     name: String,
     content: String,
@@ -179,6 +181,7 @@ struct GrammarRuleLocation {
 
 /// Mirrors the ParseStepInfo return type of `get_current_parse_step_info`
 #[derive(Debug, FromPyObject, Serialize)]
+#[pyo3(from_item_all)]
 struct ParseStepInfo {
     step_id: String,
     node_type: String,
