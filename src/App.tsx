@@ -59,7 +59,7 @@ function App() {
     const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
     const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
 
-    const decorationCollectionRef = useRef();
+    /*const decorationCollectionRef = useRef();*/
 
     const handleEditorDidMount: OnMount = (editor, monaco) => {
         editorRef.current = editor;
@@ -89,19 +89,19 @@ function App() {
         // DEBUG
         console.log("load_grammar_file")
 
-        // Reset all state values which hold parse tree information, parseInformation instance id, etc.
-
-        setEdges(undefined);
-        setNodes(undefined);
-        setGenerateParserResult(undefined);
-        setParseInfo(undefined);
-
         const file = await open({
             multiple: false,
             directory: false,
         });
 
         if (file) {
+            // DEBUG
+            console.log("set new grammar file", file);
+            // Reset all state values which hold parse tree information, parseInformation instance id, etc.
+            setEdges(undefined);
+            setNodes(undefined);
+            setGenerateParserResult(undefined);
+
             setGrammarFileLocation(file);
         }
     }
@@ -184,6 +184,8 @@ function App() {
     // instead of calling immediately,
     // which results in errors
     useEffect(() => {
+        // DEBUG
+        console.log("useEffect: grammarFileLocation", grammarFileLocation);
         if (grammarFileLocation) {
             get_parse_info(); // set parseInfo instance ID
         }
@@ -287,7 +289,7 @@ function App() {
         setInfo(_response);
     }
 
-    function testDecoration() {
+    /*function testDecoration() {
         if (monacoRef.current) {
             decorationCollectionRef.current = editorRef.current.createDecorationsCollection([
                 {
@@ -298,7 +300,7 @@ function App() {
                 }
             ]);
         }
-    }
+    }*/
 
     function hasChangedGrammarFile(userGrammar: UserGrammar): boolean {
         return Object.values(userGrammar.grammar_files).some(file => file.changed);
@@ -391,7 +393,6 @@ function App() {
                                         </div>
                                         {/* Grammar Editor */}
                                         <div className="w-3/4">
-                                            <Button color={"amber"} onClick={testDecoration}>Test</Button>
                                             <Editor
                                                 className="w-full"
                                                 height="82vh"
