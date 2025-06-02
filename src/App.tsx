@@ -19,148 +19,16 @@ import Editor, {OnMount} from '@monaco-editor/react';
 // Allotment (Resizable Panes)
 import {Allotment} from "allotment";
 import "allotment/dist/style.css";
-// React Complex Tree
-import {Tree, TreeItem, UncontrolledTreeEnvironment} from 'react-complex-tree';
+// Grammar-related imports
+import {Tree, UncontrolledTreeEnvironment} from 'react-complex-tree';
 import {GrammarFilesDataProvider} from "./components/GrammarFilesDataProvider.ts";
 import 'react-complex-tree/lib/style-modern.css';
+import {buildItemsFromUserGrammar} from "./grammarHelpers.ts";
+// Parse Tree Helpers
+import {transformJsonToParseTree} from "./parseTreeHelpers.ts";
 // ReactFlow Nodes
 import {Edge} from '@xyflow/react';
 // END IMPORTS and constants
-
-const readTemplate = (template: any, data: any = {items: {}}): any => {
-    for (const [key, value] of Object.entries(template)) {
-        // eslint-disable-next-line no-param-reassign
-        data.items[key] = {
-            index: key,
-            canMove: true,
-            isFolder: value !== null,
-            children:
-                value !== null
-                    ? Object.keys(value as Record<string, unknown>)
-                    : undefined,
-            data: key,
-            canRename: true,
-        };
-
-        if (value !== null) {
-            readTemplate(value, data);
-        }
-    }
-    return data;
-};
-
-function getCommonBasename(paths: string[]): string {
-    if (paths.length === 0) {
-        return ""; // Return an empty string if there are no paths
-    }
-
-    // Normalize paths and split into components
-    const splitPaths = paths.map(path => path.split('/'));
-
-    if (paths.length === 1) {
-        const _p = splitPaths[1]
-        return _p[_p.length] // there is only one file, return the basename
-    }
-
-    // Find the common base path
-    let minLength = Math.min(...splitPaths.map(p => p.length));
-    let commonBaseIndex = 0;
-
-    for (let i = 0; i < minLength; i++) {
-        const segment = splitPaths[0][i];
-        if (!splitPaths.every(p => p[i] === segment)) {
-            break;
-        }
-        commonBaseIndex = i;
-    }
-
-    // Join the common base path into a string
-    return splitPaths[0].slice(0, commonBaseIndex + 1).join('/') + '/';
-}
-
-// Convert userGrammar.grammar_files into the item structure expected by react-complex-tree
-function buildItemsFromUserGrammar(userGrammar: UserGrammar | undefined): Record<string, TreeItem> {
-    // DEBUG
-    console.log("buildItemsFromUserGrammar");
-
-    // The keys of userGrammar.grammar_files become child items under the "root"
-    const fileNames = Object.keys(userGrammar?.grammar_files ?? []);
-
-    const commonBasename = getCommonBasename(fileNames);
-
-    // The "root" item
-    const rootItem: TreeItem = {
-        index: 'root',
-        data: 'Root Node',
-        children: fileNames
-    };
-
-    // Each file becomes its own item
-    const fileItems = fileNames.reduce<Record<string, TreeItem>>((acc, fileName) => {
-        acc[fileName] = {
-            index: fileName,
-            data: fileName.replace(commonBasename, ''),
-            children: []
-        };
-        return acc;
-    }, {});
-
-    return {
-        root: rootItem,
-        ...fileItems
-    };
-}
-
-function transformJsonToParseTree(root: any): { nodes: ParseTreeNode[]; edges: Edge[] } {
-    const nodes: ParseTreeNode[] = [];
-    const edges: Edge[] = [];
-
-    /**
-     * Recursively traverses the JSON tree to generate nodes and edges.
-     * @param node - The current JSON node.
-     * @param parent - The parent JSON node (or null for the root).
-     * @param depth - The current depth (used to compute the x position).
-     * @param index - The index among siblings (used to compute the y position).
-     */
-    function traverse(node: any, parent: any | null, depth: number, index: number): void {
-        // Compute a simple layout: x based on depth, y based on sibling index.
-        const x = depth * 200;
-        const y = index * 100;
-
-        // Create a node object and add it to the nodes list.
-        nodes.push({
-            id: node.id,
-            position: {x, y},
-            data: {
-                nodeType: node.node_type,
-                ruleName: node.rule_name,
-                token: node.token,
-                traceSteps: node.trace_steps
-            }
-        });
-
-        // If there is a parent, create an edge from the parent to the current node.
-        if (parent) {
-            edges.push({
-                id: `e${parent.id}-${node.id}`,
-                source: parent.id,
-                target: node.id
-            });
-        }
-
-        // Recursively process children (if any).
-        if (node.children && Array.isArray(node.children)) {
-            node.children.forEach((child: any, childIndex: number) => {
-                traverse(child, node, depth + 1, childIndex);
-            });
-        }
-    }
-
-    // Start the recursion with the root node.
-    traverse(root, null, 0, 0);
-
-    return {nodes, edges};
-}
 
 function App() {
     // Initial file: a Grammar file with default content.
@@ -189,8 +57,6 @@ function App() {
     const handleEditorDidMount: OnMount = (editor, monaco) => {
         editorRef.current = editor;
         monacoRef.current = monaco;
-
-        // You can now use editor.deltaDecorations here or elsewhere
     };
 
     const [grammarFileLocation, setGrammarFileLocation] = useState("");
@@ -242,8 +108,21 @@ function App() {
     const [edges, setEdges] = useState<Edge[]>();
     const [info, setInfo] = useState<ParseStepInfo>();
 
-    // expression editor content (other editor is handled separately)
+    // expression editor content
     const [expressionContent, setExpressionContent] = useState(sampleInputText);
+
+    // grammar editor content
+    const [editorContent, setEditorContent] = useState<string>("");
+    useEffect(() => {
+        // Set the initial content of the editor when the userGrammar changes
+        if (userGrammar && activeFileIndex) {
+            const file = userGrammar.grammar_files[String(activeFileIndex)];
+            if (file) {
+                setEditorContent(file.content);
+            }
+        }
+    }, [userGrammar, activeFileIndex]);
+
 
     async function get_parse_info() {
         // DEBUG
@@ -290,7 +169,7 @@ function App() {
         }
     }
 
-    // instead of calling immediately
+    // instead of calling immediately,
     // which results in errors
     useEffect(() => {
         if (grammarFileLocation) {
@@ -500,8 +379,10 @@ function App() {
                                                     viewState={{}}
                                                     onSelectItems={(items) => {
                                                         if (items.length > 0) {
-                                                            const selectedFile = userGrammar.grammar_files[items[0]];
+                                                            console.log("selected items", userGrammar?.grammar_files[items[0]]);
+                                                            const selectedFile = userGrammar?.grammar_files[items[0]];
                                                             if (selectedFile) {
+                                                                console.log("setactivefileinded", String(items[0]))
                                                                 setActiveFileIndex(String(items[0]));
                                                             }
                                                         }
@@ -521,7 +402,7 @@ function App() {
                                                 height="82vh"
                                                 language={"antlr4"}
                                                 onMount={handleEditorDidMount}
-                                                defaultValue={userGrammar.grammar_files[String(activeFileIndex)]?.content ?? ""}
+                                                value={editorContent}
                                                 onChange={handleEditorChange}
                                                 beforeMount={(monaco) => {
                                                     // Register the custom ANTLR4 language with Monaco
