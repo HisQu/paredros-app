@@ -4,14 +4,13 @@
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use serde::Serialize;
-use std::{
-    collections::{HashMap, HashSet},
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Mutex,
-    },
-};
-use tauri::State;
+use std::{collections::{HashMap, HashSet}, env, sync::{
+    atomic::{AtomicUsize, Ordering},
+    Mutex,
+}};
+use std::path::PathBuf;
+use std::sync::Once;
+use tauri::{AppHandle, Manager, State, path::BaseDirectory};
 use pythonize::depythonize;
 
 /// A store for Python ParseInformation instances.
@@ -306,12 +305,82 @@ fn step_backwards(id: usize, store: State<ParseInfoStore>) -> Result<String, Str
     })
 }
 
+// Initialise Python exactly once. Prefer the embedded copy if it exists.
+// Call this with `&app.handle()` (see §2).
+pub fn ensure_python(handle: &AppHandle) -> Result<(), String> {
+    static START: Once = Once::new();
+    static mut INIT_ERR: Option<String> = None;
+
+    START.call_once(|| {
+        // ── 1. embedded runtime? ─────────────────────────────────────────
+        let embedded_ok = handle
+            .path()
+            .resolve("py", BaseDirectory::Resource) // resources/py
+            .ok()                                   // Result → Option
+            .and_then(|py_root| {
+                if py_root.exists() {
+                    let plat_dir = current_platform_dir(&py_root)?;
+                    configure_env_for_embedded(&plat_dir);
+                    Some(())                         // success
+                } else {
+                    None
+                }
+            })
+            .is_some();
+
+        if !embedded_ok {
+            eprintln!("⚠️  Embedded Python not found – falling back to system interpreter");
+        }
+
+        // ── 2. start interpreter (infallible) ───────────────────────────
+        pyo3::prepare_freethreaded_python();
+    });
+
+    unsafe { INIT_ERR.clone().map_or(Ok(()), Err) }
+}
+
+// ---------- helpers ----------------------------------------------------
+
+fn current_platform_dir(py_root: &PathBuf) -> Option<PathBuf> {
+    let dir = if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+        "windows"
+    } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+        "macos"
+    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+        "linux"
+    } else {
+        return None;
+    };
+    Some(py_root.join(dir))
+}
+
+fn configure_env_for_embedded(dir: &PathBuf) {
+    let stdlib = dir.join("Lib");
+
+    env::set_var("PYTHONHOME", dir);
+    env::set_var(
+        "PYTHONPATH",
+        format!(
+            "{}{}{}",
+            stdlib.display(),
+            if cfg!(windows) { ";" } else { ":" },
+            stdlib.join("site-packages").display()
+        ),
+    );
+
+    if cfg!(target_os = "linux") {
+        env::set_var("LD_LIBRARY_PATH", dir);
+    } else if cfg!(target_os = "macos") {
+        env::set_var("DYLD_LIBRARY_PATH", dir);
+    }
+}
+
 fn main() {
-    // Prepare Python for multithreaded use.
-    pyo3::prepare_freethreaded_python();
 
     tauri::Builder::default()
-        .setup(|_app| {
+        .setup(|app| {
+            let handle = app.handle();
+            ensure_python(&handle)?;          // initialise once
             Ok(())
         })
         .plugin(tauri_plugin_fs::init())

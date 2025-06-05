@@ -19,15 +19,18 @@ jobs:
             args: '--target aarch64-apple-darwin'
           - platform: 'macos-latest' # for Intel based macs.
             args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-22.04' # for Tauri v1 you could replace this with ubuntu-20.04.
+          - platform: 'ubuntu-22.04'
             args: ''
           - platform: 'windows-latest'
             args: ''
-
     runs-on: ${{ matrix.platform }}
+    env:
+      # point PyO3’s build-script at the copy you just downloaded/built
+      PYO3_PYTHON: ${{ github.workspace }}/src-tauri/resources/py/${{ matrix.os }}/python3.12
     steps:
       - uses: actions/checkout@v4
 
+      # ---- tooling --------------------------------------------------------
       - name: setup node
         uses: actions/setup-node@v4
         with:
@@ -39,13 +42,36 @@ jobs:
           # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+
+      - uses: actions/setup-java@v4           # antlr4-tools requires Java only at build time
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # ---- pip + PyInstaller ----------------------------------------------
+      - name: Install Python deps
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Freeze sidecar with PyInstaller
+        run: |
+          pyinstaller -F python_src/__main__.py \
+            --name mypython                      \
+            --add-data "python_src${{ runner.os == 'Windows' && ';' || ':' }}." \
+            --clean
+          mkdir -p src-tauri/binaries
+          cp dist/mypython${{ matrix.exe_ext }} \
+            "src-tauri/binaries/mypython-${{ matrix.rust_target }}${{ matrix.exe_ext }}"
+
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-        # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
-        # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: install frontend dependencies
         run: yarn install # change this to npm, pnpm or bun depending on which one you use.
