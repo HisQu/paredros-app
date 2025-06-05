@@ -46,19 +46,20 @@ fn get_parse_info(grammar: String, store: State<ParseInfoStore>) -> Result<usize
         let sys = py.import("sys").map_err(|e| e.to_string())?;
         let path_obj = sys.getattr("path").map_err(|e| e.to_string())?;
         let sys_path = path_obj.downcast::<PyList>().map_err(|e| e.to_string())?;
-        // Adjust the path as needed so that the paredros_debugger package is found.
+        // use the local repository, going from the cwd, if it exists
         sys_path
-            .insert(0, "paredros-debugger")
+            .insert(0, "paredros_debugger")
             .map_err(|e| e.to_string())?;
-
-        // Import the Python module that exposes get_parse_info.
-        let module = py.import("get_parse_info").map_err(|e| e.to_string())?;
-        // Get the function.
-        let func = module
-            .getattr("get_parse_info")
+        let module = py
+            .import("paredros_debugger.ParseInformation")
+            .map_err(|e| e.to_string())?;
+        let parse_information_cls = module
+            .getattr("ParseInformation")
             .map_err(|e| e.to_string())?;
         // Call the function with the provided arguments; it returns a ParseInformation instance.
-        let py_instance = func.call1((grammar,)).map_err(|e| e.to_string())?;
+        let py_instance = parse_information_cls
+            .call1((grammar,))
+            .map_err(|e| e.to_string())?;
         let parse_info: Py<PyAny> = py_instance.into();
 
         // Generate a unique ID and store the ParseInformation instance.
@@ -67,6 +68,7 @@ fn get_parse_info(grammar: String, store: State<ParseInfoStore>) -> Result<usize
         Ok(id)
     })
 }
+
 
 /// Call the generate_parser method on a stored ParseInformation instance
 #[tauri::command]
