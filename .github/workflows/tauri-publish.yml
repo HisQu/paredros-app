@@ -58,7 +58,7 @@ jobs:
       - name: Create Python venv and install dependencies
         run: |
           python -m venv venv
-          source ${{ matrix.venv_dir }}/bin/activate || .\\${{ matrix.venv_dir }}\\Scripts\\activate
+          source venv/bin/activate || .\\venv\\Scripts\\activate
           python -m pip install -U pip
           pip install -r requirements.txt
         shell: bash
@@ -66,16 +66,16 @@ jobs:
       # Optionally clean up venv to reduce size (strip cache, tests, etc)
       - name: Clean up venv (optional)
         run: |
-          find ${{ matrix.venv_dir }} -type d -name "__pycache__" -exec rm -rf {} +
-          find ${{ matrix.venv_dir }} -type d -name "tests" -exec rm -rf {} +
-          rm -rf ${{ matrix.venv_dir }}/lib/python*/site-packages/pip
+          find venv -type d -name "__pycache__" -exec rm -rf {} +
+          find venv -type d -name "tests" -exec rm -rf {} +
+          rm -rf venv/lib/python*/site-packages/pip
         shell: bash
 
       - name: Copy venv to tauri resources
         run: |
           mkdir -p src-tauri/binaries
           # Copy venv to a platform-specific directory for your Tauri bundle
-          cp -r ${{ matrix.venv_dir }} src-tauri/binaries/venv-${{ matrix.rust_target }}
+          cp -r venv src-tauri/binaries/venv-${{ matrix.rust_target }}
         shell: bash
 
       - name: install frontend dependencies
