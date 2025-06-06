@@ -23,8 +23,7 @@
   },
   "bundle": {
     "externalBin": [
-      "binaries/paredros-py",
-      "binaries/python312.dll"
+      "binaries/venv"
     ],
     "active": true,
     "targets": "all",
