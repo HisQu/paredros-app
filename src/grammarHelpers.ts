@@ -6,13 +6,15 @@ function getCommonBasename(paths: string[]): string {
         return ""; // Return an empty string if there are no paths
     }
 
+    // Special case: only one path
+    if (paths.length === 1) {
+        const parts = paths[0].split('/');
+        parts.pop(); // Remove the filename
+        return parts.join('/') + (parts.length > 0 ? '/' : '');
+    }
+
     // Normalize paths and split into components
     const splitPaths = paths.map(path => path.split('/'));
-
-    if (paths.length === 1) {
-        const _p = splitPaths[1]
-        return _p[_p.length] // there is only one file, return the basename
-    }
 
     // Find the common base path
     let minLength = Math.min(...splitPaths.map(p => p.length));

@@ -191,7 +191,7 @@ struct Transition {
     matches: Vec<String>,
 }
 
-/// Mirrors the `grammar_rule_location` sub‐dict
+/// Mirrors the `grammar_rule_location` sub-dict
 #[derive(Debug, FromPyObject, Serialize)]
 #[pyo3(from_item_all)]
 struct GrammarRuleLocation {
@@ -204,12 +204,13 @@ struct GrammarRuleLocation {
     end_pos: usize,
 }
 
-/// Mirrors the ParseStepInfo return type of `get_current_parse_step_info`
+/// Mirrors `ParseStepInfo`, return type of `get_current_parse_step_info`
 #[derive(Debug, FromPyObject, Serialize)]
 #[pyo3(from_item_all)]
+#[serde(rename_all = "snake_case")]
 struct ParseStepInfo {
     step_id: String,
-    node_type: String,
+    step_type: String,
     rule_name: Option<String>,
     rule_stack: Vec<String>,
     state: String,
@@ -217,11 +218,10 @@ struct ParseStepInfo {
     token_index: usize,
     chosen_transition_index: Option<i32>,
     input_text_context: String,
-    lookahead_repr: String,
+    next_token_stream_index: usize,
+    lookahead_repr: Vec<String>,
     matching_error: bool,
     is_error_node: bool,
-    next_input_token: Option<String>,
-    next_input_literal: Option<String>,
     possible_transitions: Option<Vec<Transition>>,
     grammar_rule_location: Option<GrammarRuleLocation>,
     input_context_snippet: Option<String>,
@@ -306,12 +306,85 @@ fn step_backwards(id: usize, store: State<ParseInfoStore>) -> Result<String, Str
     })
 }
 
+// Initialise Python exactly once. Prefer the embedded copy if it exists.
+// Call this with `&app.handle()`.
+pub fn ensure_python(handle: &AppHandle) -> Result<(), String> {
+    // `Result<(), String>` is `Clone`, so we can hand out a copy later.
+    static INIT: OnceLock<Result<(), String>> = OnceLock::new();
+
+    INIT
+        .get_or_init(|| {
+            // ── 1. embedded runtime? ───────────────────────────────
+            let embedded_ok = handle
+                .path()
+                .resolve("py", BaseDirectory::Resource)   // resources/py
+                .ok()
+                .and_then(|py_root| {
+                    if py_root.exists() {
+                        let plat_dir = current_platform_dir(&py_root)?;
+                        configure_env_for_embedded(&plat_dir);
+                        Some(())
+                    } else {
+                        None
+                    }
+                })
+                .is_some();
+
+            if !embedded_ok {
+                eprintln!("⚠️  Embedded Python not found – falling back to system interpreter");
+            }
+
+            // ── 2. start interpreter ───────────────────────────────
+            pyo3::prepare_freethreaded_python();
+
+            Ok(())               // <- whatever error you want to propagate
+        })
+        .clone()                 // hand the stored result to the caller
+}
+
+// ---------- helpers ----------------------------------------------------
+
+fn current_platform_dir(py_root: &PathBuf) -> Option<PathBuf> {
+    let dir = if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+        "windows"
+    } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+        "macos"
+    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+        "linux"
+    } else {
+        return None;
+    };
+    Some(py_root.join(dir))
+}
+
+//noinspection RsUnsafeError
+fn configure_env_for_embedded(dir: &PathBuf) {
+    let stdlib = dir.join("Lib");
+
+    env::set_var("PYTHONHOME", dir);
+    env::set_var(
+        "PYTHONPATH",
+        format!(
+            "{}{}{}",
+            stdlib.display(),
+            if cfg!(windows) { ";" } else { ":" },
+            stdlib.join("site-packages").display()
+        ),
+    );
+
+    if cfg!(target_os = "linux") {
+        env::set_var("LD_LIBRARY_PATH", dir);
+    } else if cfg!(target_os = "macos") {
+        env::set_var("DYLD_LIBRARY_PATH", dir);
+    }
+}
+
 fn main() {
-    // Prepare Python for multithreaded use.
-    pyo3::prepare_freethreaded_python();
 
     tauri::Builder::default()
-        .setup(|_app| {
+        .setup(|app| {
+            let handle = app.handle();
+            ensure_python(&handle)?;          // initialise once
             Ok(())
         })
         .plugin(tauri_plugin_fs::init())

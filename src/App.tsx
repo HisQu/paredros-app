@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 // Tauri
 import {invoke} from "@tauri-apps/api/core";
 import {open} from '@tauri-apps/plugin-dialog';
@@ -34,6 +34,7 @@ import {
     ParserInputOverlay,
     ParseExpressionOverlay
 } from "./components/ParseTreeOverlays.tsx";
+import {FolderOpenIcon} from "@heroicons/react/24/outline";
 
 // END IMPORTS and constants
 
@@ -347,12 +348,16 @@ function App() {
                     <h1 className="text-2xl font-bold text-middle">πάρεδρος</h1>
                     <span
                         className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2">
-            Grammar debugging environment
-          </span>
-                    <Button color="lime" onClick={load_grammar_file}>Load a grammar file</Button>
-                    <Button color="indigo" onClick={generate_parser_and_save_grammar_files}>Generate Parser (and save
-                        grammar files)</Button>
-                    <Button color="amber" onClick={parse_input}>Parse Input File</Button>
+                        Grammar debugging environment
+                    </span>
+                    <Button onClick={load_grammar_file} color={"lime"}>
+                        <FolderOpenIcon aria-hidden="true" className="mr-1.5 -ml-0.5 size-5"/>
+                        Open Grammar file
+                    </Button>
+                    <Button color="indigo" onClick={generate_parser_and_save_grammar_files} disabled={!userGrammar}>
+                        Generate Parser (and save grammar files)
+                    </Button>
+                    <Button color="amber" onClick={parse_input} disabled={!userGrammar}>Parse Input File</Button>
                 </div>
             </header>
             {userGrammar ? <div className="w-screen h-screen">
@@ -366,7 +371,8 @@ function App() {
                             ? (hasChangedGrammarFile(userGrammar)
                                 ? (<ParserInputOverlay onClick={generate_parser_save_grammar_files_parse_input}/>)
                                 : <Flow ref={flowRef} node={nodes} edge={edges} step_backwards={step_backwards}
-                                        step_forwards={step_forwards} current_step={info?.step_id} step_action={go_to_step}/>)
+                                        step_forwards={step_forwards} current_step={info?.step_id}
+                                        step_action={go_to_step}/>)
                             : ((generateParserResult)
                                     ? (<ParseExpressionOverlay onClick={parse_input}/>)
                                     : (<GenerateParserOverlay onClick={generate_parser}/>)
