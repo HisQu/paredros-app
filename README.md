@@ -50,8 +50,18 @@ AcceleratedSurfaceDMABuf was unable to construct a complete framebuffer
 ```
 Then set the environment variable `export WEBKIT_DISABLE_DMABUF_RENDERER=1`. Issue is documented [on GitHub](https://github.com/tauri-apps/tauri/issues/9304).
 
+### The display is blank (but the buttons work)
+
+The fix might also be to:
+```
+# NVIDIA proprietary driver (or when you see “DMABUF” errors)
+WEBKIT_DISABLE_DMABUF_RENDERER=1 tauri dev
+# ---------------- OR ----------------
+# Intel/Mesa or Wayland “compositing” glitches
+WEBKIT_DISABLE_COMPOSITING_MODE=1 tauri dev
+```
+
 ### Python Libraries missing?
-Error:
 ```
 ➜  Local:   http://localhost:1420/
     Running DevCommand (`cargo  run --no-default-features --color always --`)
@@ -69,7 +79,10 @@ error Command failed with exit code 127.
 info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
 ```
 
-You can fix this by setting the environment variable `LD_LIBRARY_PATH`. You need to of course use the correct python version. If you use `pyenv` you can do this for example:
+First fix is to install e.g. `sudo apt install python3.12-dev`, which contains the appropriate libraries. Tauri should find them
+
+You can also fix this by setting the environment variable `LD_LIBRARY_PATH`. You need to of course use the correct python version.
+If you use `pyenv` you can do this for example:
 ```
 export LD_LIBRARY_PATH="$(pyenv root)/versions/3.10.14/lib"
 ```
