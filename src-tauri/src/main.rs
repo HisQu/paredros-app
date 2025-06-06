@@ -178,12 +178,13 @@ struct GrammarRuleLocation {
     end_pos: usize,
 }
 
-/// Mirrors the ParseStepInfo return type of `get_current_parse_step_info`
+/// Mirrors `ParseStepInfo`, return type of `get_current_parse_step_info`
 #[derive(Debug, FromPyObject, Serialize)]
 #[pyo3(from_item_all)]
+#[serde(rename_all = "snake_case")]
 struct ParseStepInfo {
     step_id: String,
-    node_type: String,
+    step_type: String,
     rule_name: Option<String>,
     rule_stack: Vec<String>,
     state: String,
@@ -191,11 +192,10 @@ struct ParseStepInfo {
     token_index: usize,
     chosen_transition_index: Option<i32>,
     input_text_context: String,
-    lookahead_repr: String,
+    next_token_stream_index: usize,
+    lookahead_repr: Vec<String>,
     matching_error: bool,
     is_error_node: bool,
-    next_input_token: Option<String>,
-    next_input_literal: Option<String>,
     possible_transitions: Option<Vec<Transition>>,
     grammar_rule_location: Option<GrammarRuleLocation>,
     input_context_snippet: Option<String>,

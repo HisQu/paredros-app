@@ -26,6 +26,18 @@ source .venv/bin/activate && pip install -r requirements.txt
 ```
 
 3. Install all requirements for Tauri development, see [Prerequisites](https://tauri.app/start/prerequisites/).
+```shell
+sudo apt update
+sudo apt install libwebkit2gtk-4.1-dev \
+  build-essential \
+  curl \
+  wget \
+  file \
+  libxdo-dev \
+  libssl-dev \
+  libayatana-appindicator3-dev \
+  librsvg2-dev
+```
 
 4. Install all node packages:
 ```shell
