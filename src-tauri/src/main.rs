@@ -13,6 +13,9 @@ use std::sync::OnceLock;
 use tauri::{AppHandle, Manager, State, path::BaseDirectory};
 use pythonize::depythonize;
 
+/// because of a bug on certain platforms, where the screen is blank.
+std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+
 /// A store for Python ParseInformation instances.
 struct ParseInfoStore {
     /// A counter used to generate unique IDs.

@@ -66,12 +66,12 @@ jobs:
       - name: Freeze sidecar with PyInstaller
         shell: bash
         run: |
-          pyinstaller -F src-python/__main__.py \
+          pyinstaller src-python/__main__.py \
             --name paredros                      \
             --add-data "src-python${{ runner.os == 'Windows' && ';' || ':' }}." \
             --clean
-          mkdir -p src-tauri/binaries
-          cp "dist/paredros${{ matrix.exe_ext }}" \
+          mkdir -p "src-tauri/binaries/paredros-py-${{ matrix.rust_target }}"
+          cp "dist/paredros" \
           "src-tauri/binaries/paredros-py-${{ matrix.rust_target }}${{ matrix.exe_ext }}"
 
       - name: install dependencies (ubuntu only)
