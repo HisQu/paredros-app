@@ -22,7 +22,10 @@
     }
   },
   "bundle": {
-    "externalBin": ["binaries/paredros-py"],
+    "externalBin": [
+      "binaries/paredros-py",
+      "binaries/python312.dll"
+    ],
     "active": true,
     "targets": "all",
     "icon": [

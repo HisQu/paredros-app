@@ -70,9 +70,23 @@ jobs:
             --name paredros                      \
             --add-data "src-python${{ runner.os == 'Windows' && ';' || ':' }}." \
             --clean
-          mkdir -p "src-tauri/binaries/paredros-py-${{ matrix.rust_target }}"
-          cp "dist/paredros" \
-          "src-tauri/binaries/paredros-py-${{ matrix.rust_target }}${{ matrix.exe_ext }}"
+          mkdir -p src-tauri/binaries
+          cp "dist/paredros${{ matrix.exe_ext }}" \
+            "src-tauri/binaries/paredros-py-${{ matrix.rust_target }}${{ matrix.exe_ext }}"
+
+      - name: Copy python312.dll (Windows only)
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        run: |
+          # Find the location of python312.dll in the Python install directory
+          PYTHON_DLL="$(python -c "import sys; print(sys.base_prefix)")/python312.dll"
+          # Confirm the file exists
+          if [ ! -f "$PYTHON_DLL" ]; then
+          echo "python312.dll not found at $PYTHON_DLL"
+          exit 1
+          fi
+          # Copy it next to your frozen exe
+          cp "$PYTHON_DLL" "src-tauri/binaries/python312.dll"
 
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
