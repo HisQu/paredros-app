@@ -17,13 +17,21 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest' # for Arm based macs (M1 and above).
+            rust_target: aarch64-apple-darwin
             args: '--target aarch64-apple-darwin'
+            exe_ext: ''
           - platform: 'macos-latest' # for Intel based macs.
+            rust_target: x86_64-apple-darwin
             args: '--target x86_64-apple-darwin'
+            exe_ext: ''
           - platform: 'ubuntu-22.04'
+            rust_target: x86_64-unknown-linux-gnu
+            exe_ext: ''
             args: ''
           - platform: 'windows-latest'
+            rust_target: x86_64-pc-windows-msvc
             args: ''
+            exe_ext: '.exe'
     runs-on: ${{ matrix.platform }}
     env:
       # point PyO3’s build-script at the copy you just downloaded/built
