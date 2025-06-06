@@ -22,6 +22,9 @@
     }
   },
   "bundle": {
+    "externalBin": [
+      "binaries/venv"
+    ],
     "active": true,
     "targets": "all",
     "icon": [
