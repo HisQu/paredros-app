@@ -9,7 +9,7 @@ use std::{collections::{HashMap, HashSet}, env, sync::{
     Mutex,
 }};
 use std::path::PathBuf;
-use std::sync::Once;
+use std::sync::OnceLock;
 use tauri::{AppHandle, Manager, State, path::BaseDirectory};
 use pythonize::depythonize;
 
@@ -190,7 +190,7 @@ struct Transition {
     matches: Vec<String>,
 }
 
-/// Mirrors the `grammar_rule_location` sub‐dict
+/// Mirrors the `grammar_rule_location` sub-dict
 #[derive(Debug, FromPyObject, Serialize)]
 #[pyo3(from_item_all)]
 struct GrammarRuleLocation {
@@ -306,37 +306,39 @@ fn step_backwards(id: usize, store: State<ParseInfoStore>) -> Result<String, Str
 }
 
 // Initialise Python exactly once. Prefer the embedded copy if it exists.
-// Call this with `&app.handle()` (see §2).
+// Call this with `&app.handle()`.
 pub fn ensure_python(handle: &AppHandle) -> Result<(), String> {
-    static START: Once = Once::new();
-    static mut INIT_ERR: Option<String> = None;
+    // `Result<(), String>` is `Clone`, so we can hand out a copy later.
+    static INIT: OnceLock<Result<(), String>> = OnceLock::new();
 
-    START.call_once(|| {
-        // ── 1. embedded runtime? ─────────────────────────────────────────
-        let embedded_ok = handle
-            .path()
-            .resolve("py", BaseDirectory::Resource) // resources/py
-            .ok()                                   // Result → Option
-            .and_then(|py_root| {
-                if py_root.exists() {
-                    let plat_dir = current_platform_dir(&py_root)?;
-                    configure_env_for_embedded(&plat_dir);
-                    Some(())                         // success
-                } else {
-                    None
-                }
-            })
-            .is_some();
+    INIT
+        .get_or_init(|| {
+            // ── 1. embedded runtime? ───────────────────────────────
+            let embedded_ok = handle
+                .path()
+                .resolve("py", BaseDirectory::Resource)   // resources/py
+                .ok()
+                .and_then(|py_root| {
+                    if py_root.exists() {
+                        let plat_dir = current_platform_dir(&py_root)?;
+                        configure_env_for_embedded(&plat_dir);
+                        Some(())
+                    } else {
+                        None
+                    }
+                })
+                .is_some();
 
-        if !embedded_ok {
-            eprintln!("⚠️  Embedded Python not found – falling back to system interpreter");
-        }
+            if !embedded_ok {
+                eprintln!("⚠️  Embedded Python not found – falling back to system interpreter");
+            }
 
-        // ── 2. start interpreter (infallible) ───────────────────────────
-        pyo3::prepare_freethreaded_python();
-    });
+            // ── 2. start interpreter ───────────────────────────────
+            pyo3::prepare_freethreaded_python();
 
-    unsafe { INIT_ERR.clone().map_or(Ok(()), Err) }
+            Ok(())               // <- whatever error you want to propagate
+        })
+        .clone()                 // hand the stored result to the caller
 }
 
 // ---------- helpers ----------------------------------------------------
