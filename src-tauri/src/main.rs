@@ -8,13 +8,10 @@ use std::{collections::{HashMap, HashSet}, env, sync::{
     atomic::{AtomicUsize, Ordering},
     Mutex,
 }};
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::OnceLock;
-use tauri::{AppHandle, Manager, State, path::BaseDirectory};
+use tauri::{AppHandle, Manager, State};
 use pythonize::depythonize;
-
-/// because of a bug on certain platforms, where the screen is blank.
-std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
 
 /// A store for Python ParseInformation instances.
 struct ParseInfoStore {
@@ -311,76 +308,53 @@ fn step_backwards(id: usize, store: State<ParseInfoStore>) -> Result<String, Str
 // Initialise Python exactly once. Prefer the embedded copy if it exists.
 // Call this with `&app.handle()`.
 pub fn ensure_python(handle: &AppHandle) -> Result<(), String> {
-    // `Result<(), String>` is `Clone`, so we can hand out a copy later.
     static INIT: OnceLock<Result<(), String>> = OnceLock::new();
+    println!("ensure python");
 
     INIT
         .get_or_init(|| {
-            // ── 1. embedded runtime? ───────────────────────────────
-            let embedded_ok = handle
-                .path()
-                .resolve("py", BaseDirectory::Resource)   // resources/py
-                .ok()
-                .and_then(|py_root| {
-                    if py_root.exists() {
-                        let plat_dir = current_platform_dir(&py_root)?;
-                        configure_env_for_embedded(&plat_dir);
-                        Some(())
-                    } else {
-                        None
-                    }
-                })
-                .is_some();
+            // 1. Check for venv in <ProgramDirectory>/venv/
+            let resource_dir = handle.path().resource_dir()
+                .map_err(|e| format!("Failed to get resource dir: {}", e))?;
+            let venv_dir = resource_dir.join("venv");
 
-            if !embedded_ok {
-                eprintln!("⚠️  Embedded Python not found – falling back to system interpreter");
+            if venv_dir.exists() && venv_dir.is_dir() {
+                configure_env_for_venv(&venv_dir);
             }
 
-            // ── 2. start interpreter ───────────────────────────────
+            // 3. start interpreter
             pyo3::prepare_freethreaded_python();
 
-            Ok(())               // <- whatever error you want to propagate
+            Ok(())
         })
-        .clone()                 // hand the stored result to the caller
+        .clone()
 }
 
-// ---------- helpers ----------------------------------------------------
+fn configure_env_for_venv(venv_dir: &Path) {
+    // On venv, PYTHONHOME should NOT be set
+    // But you DO need to adjust PATH, PYTHONPATH, etc
 
-fn current_platform_dir(py_root: &PathBuf) -> Option<PathBuf> {
-    let dir = if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
-        "windows"
-    } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-        "macos"
-    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
-        "linux"
+    println!("configure_env_for_venv");
+
+    // The venv's Python binary dir
+    let bin_dir = if cfg!(windows) {
+        venv_dir.join("Scripts")
     } else {
-        return None;
+        venv_dir.join("bin")
     };
-    Some(py_root.join(dir))
-}
 
-fn configure_env_for_embedded(dir: &PathBuf) {
-    let stdlib = dir.join("Lib");
+    // Prepend bin_dir to PATH
+    let path = env::var_os("PATH").unwrap_or_default();
+    let new_path = format!("{}{}{}", bin_dir.display(), if cfg!(windows) { ";" } else { ":" }, path.to_string_lossy());
+    env::set_var("PATH", new_path);
 
-    env::set_var("PYTHONHOME", dir);
-    env::set_var(
-        "PYTHONPATH",
-        format!(
-            "{}{}{}",
-            stdlib.display(),
-            if cfg!(windows) { ";" } else { ":" },
-            stdlib.join("site-packages").display()
-        ),
-    );
-
-    if cfg!(target_os = "linux") {
-        env::set_var("LD_LIBRARY_PATH", dir);
-    } else if cfg!(target_os = "macos") {
-        env::set_var("DYLD_LIBRARY_PATH", dir);
-    }
+    // Disable user site-packages to force venv
+    env::set_var("PYTHONNOUSERSITE", "1");
 }
 
 fn main() {
+    // because of a bug on certain platforms, where the screen is blank.
+    env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
 
     tauri::Builder::default()
         .setup(|app| {
