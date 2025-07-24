@@ -11,7 +11,6 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-// ✨ THIS is the important import that fixes your errors:
 use tauri::{path::BaseDirectory, AppHandle, Emitter, Manager};
 
 #[derive(Debug, Serialize, Clone)]
