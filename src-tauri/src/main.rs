@@ -1,23 +1,22 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod python_env;
+
+use crate::python_env::{delete_venv, ensure_python_async, ensure_python_sync};
 use pyo3::prelude::*;
-use pyo3::types::PyList;
-use serde::Serialize;
-use std::{collections::{HashMap, HashSet}, env, sync::{
+use pythonize::depythonize; // keep if you still use it in other commands
+use std::collections::{HashMap, HashSet};
+use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Mutex,
-}};
-use std::path::PathBuf;
-use std::sync::OnceLock;
-use tauri::{AppHandle, Manager, State, path::BaseDirectory};
-use pythonize::depythonize;
+};
+use serde::Serialize;
+use tauri::{AppHandle, State};
 
-/// A store for Python ParseInformation instances.
+// ---------------- Store ----------------
+
 struct ParseInfoStore {
-    /// A counter used to generate unique IDs.
     counter: AtomicUsize,
-    /// A mapping from unique IDs to Python objects.
     nodes: Mutex<HashMap<usize, Py<PyAny>>>,
 }
 
@@ -30,44 +29,29 @@ impl Default for ParseInfoStore {
     }
 }
 
-/// A simple example command.
+// ---------------- Commands ----------------
+
 #[tauri::command]
 fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+    format!("Hello, {name}! You've been greeted from Rust!")
 }
 
-/// Create a new ParseInformation instance by calling the get_parse_info function from a helper file.
-/// Returns an ID (handle) for the created instance.
 #[tauri::command]
-fn get_parse_info(grammar: String, store: State<ParseInfoStore>) -> Result<usize, String> {
+fn get_parse_info(grammar: String, store: State<ParseInfoStore>, app: AppHandle) -> Result<usize, String> {
+    // Just call sync bootstrap; it's idempotent.
+    ensure_python_sync(&app).map_err(|e| e.to_string())?;
+
     Python::with_gil(|py| {
-        // Extend sys.path so that Python can find your modules.
-        let sys = py.import("sys").map_err(|e| e.to_string())?;
-        let path_obj = sys.getattr("path").map_err(|e| e.to_string())?;
-        let sys_path = path_obj.downcast::<PyList>().map_err(|e| e.to_string())?;
-        // use the local repository, going from the cwd, if it exists
-        sys_path
-            .insert(0, "paredros_debugger")
-            .map_err(|e| e.to_string())?;
         let module = py
             .import("paredros_debugger.ParseInformation")
             .map_err(|e| e.to_string())?;
-        let parse_information_cls = module
-            .getattr("ParseInformation")
-            .map_err(|e| e.to_string())?;
-        // Call the function with the provided arguments; it returns a ParseInformation instance.
-        let py_instance = parse_information_cls
-            .call1((grammar,))
-            .map_err(|e| e.to_string())?;
-        let parse_info: Py<PyAny> = py_instance.into();
-
-        // Generate a unique ID and store the ParseInformation instance.
+        let cls = module.getattr("ParseInformation").map_err(|e| e.to_string())?;
+        let obj = cls.call1((grammar,)).map_err(|e| e.to_string())?;
         let id = store.counter.fetch_add(1, Ordering::SeqCst);
-        store.nodes.lock().unwrap().insert(id, parse_info);
+        store.nodes.lock().unwrap().insert(id, obj.into());
         Ok(id)
     })
 }
-
 
 /// Call the generate_parser method on a stored ParseInformation instance
 #[tauri::command]
@@ -305,94 +289,28 @@ fn step_backwards(id: usize, store: State<ParseInfoStore>) -> Result<String, Str
     })
 }
 
-// Initialise Python exactly once. Prefer the embedded copy if it exists.
-// Call this with `&app.handle()`.
-pub fn ensure_python(handle: &AppHandle) -> Result<(), String> {
-    // `Result<(), String>` is `Clone`, so we can hand out a copy later.
-    static INIT: OnceLock<Result<(), String>> = OnceLock::new();
-
-    INIT
-        .get_or_init(|| {
-            // ── 1. embedded runtime? ───────────────────────────────
-            let embedded_ok = handle
-                .path()
-                .resolve("py", BaseDirectory::Resource)   // resources/py
-                .ok()
-                .and_then(|py_root| {
-                    if py_root.exists() {
-                        let plat_dir = current_platform_dir(&py_root)?;
-                        configure_env_for_embedded(&plat_dir);
-                        Some(())
-                    } else {
-                        None
-                    }
-                })
-                .is_some();
-
-            if !embedded_ok {
-                eprintln!("⚠️  Embedded Python not found – falling back to system interpreter");
-            }
-
-            // ── 2. start interpreter ───────────────────────────────
-            pyo3::prepare_freethreaded_python();
-
-            Ok(())               // <- whatever error you want to propagate
-        })
-        .clone()                 // hand the stored result to the caller
+#[tauri::command]
+fn repair_python(app: AppHandle) -> Result<(), String> {
+    delete_venv(&app).map_err(|e| e.to_string())
 }
 
-// ---------- helpers ----------------------------------------------------
-
-fn current_platform_dir(py_root: &PathBuf) -> Option<PathBuf> {
-    let dir = if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
-        "windows"
-    } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-        "macos"
-    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
-        "linux"
-    } else {
-        return None;
-    };
-    Some(py_root.join(dir))
-}
-
-fn configure_env_for_embedded(dir: &PathBuf) {
-    let stdlib = dir.join("Lib");
-
-    env::set_var("PYTHONHOME", dir);
-    env::set_var(
-        "PYTHONPATH",
-        format!(
-            "{}{}{}",
-            stdlib.display(),
-            if cfg!(windows) { ";" } else { ":" },
-            stdlib.join("site-packages").display()
-        ),
-    );
-
-    if cfg!(target_os = "linux") {
-        env::set_var("LD_LIBRARY_PATH", dir);
-    } else if cfg!(target_os = "macos") {
-        env::set_var("DYLD_LIBRARY_PATH", dir);
-    }
-}
+// ─────────────────────────────────────────────────────────────────────────────
+//  4.  main()
+// ─────────────────────────────────────────────────────────────────────────────
 
 fn main() {
-
     tauri::Builder::default()
         .setup(|app| {
-            let handle = app.handle();
-            ensure_python(&handle)?;          // initialise once
+            ensure_python_async(app.handle().clone());
             Ok(())
         })
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        // Make our ParseInfoStore available as Tauri state.
         .manage(ParseInfoStore::default())
-        // expose these commands to typescript
         .invoke_handler(tauri::generate_handler![
             greet,
             get_parse_info,
+            repair_python,
             generate_parser,
             parse_input,
             go_to_step,

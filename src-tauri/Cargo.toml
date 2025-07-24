@@ -28,3 +28,7 @@ pyo3 = { version = "0.25", features = ["auto-initialize"] } # https://github.com
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 pythonize = "0.25"
+anyhow = "1"
+which = "6"
+sha2 = "0.10"
+thiserror = "1"
