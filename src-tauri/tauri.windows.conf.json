@@ -1,0 +1,10 @@
+{
+  "bundle": {
+    "resources": [
+      "py/windows/**"
+    ],
+    "externalBin": [
+      "py/windows/python312.dll",
+    ]
+  }
+}

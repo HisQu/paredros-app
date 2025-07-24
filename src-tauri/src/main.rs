@@ -2,7 +2,7 @@
 
 mod python_env;
 
-use crate::python_env::{delete_venv, ensure_python_async, ensure_python_sync};
+use crate::python_env::{delete_venv, ensure_python_sync};
 use pyo3::prelude::*;
 use pythonize::depythonize; // keep if you still use it in other commands
 use std::collections::{HashMap, HashSet};
@@ -12,7 +12,7 @@ use std::sync::{
 };
 use serde::Serialize;
 use tauri::{AppHandle, State};
-
+use tauri_plugin_dialog::{MessageDialogKind, DialogExt}; // Add DialogExt here
 // ---------------- Store ----------------
 
 struct ParseInfoStore {
@@ -301,8 +301,25 @@ fn repair_python(app: AppHandle) -> Result<(), String> {
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
-            ensure_python_async(app.handle().clone());
-            Ok(())
+            match ensure_python_sync(app.handle()) {
+                Ok(_) => {
+                    // Environment is ready, continue.
+                    Ok(())
+                }
+                Err(err_msg) => {
+                    app.dialog()
+                        // Remove .blocking() here
+                        .message(&format!("A critical error occurred with the Python backend:\n\n{}\n\nThe application must now close.", err_msg))
+                        .kind(MessageDialogKind::Error)
+                        .show(|_| {});
+
+                    // Exit the application gracefully.
+                    app.handle().exit(1);
+
+                    // Return an error to halt the setup process.
+                    Err(err_msg.into())
+                }
+            }
         })
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
