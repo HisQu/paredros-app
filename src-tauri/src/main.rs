@@ -1,24 +1,22 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use pyo3::prelude::*;
-use pyo3::types::PyList;
-use serde::Serialize;
-use std::{
-    collections::{HashMap, HashSet},
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Mutex,
-    },
-};
-use tauri::State;
-use pythonize::depythonize;
+mod python_env;
 
-/// A store for Python ParseInformation instances.
+use crate::python_env::{delete_venv, ensure_python_async, ensure_python_sync};
+use pyo3::prelude::*;
+use pythonize::depythonize; // keep if you still use it in other commands
+use std::collections::{HashMap, HashSet};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Mutex,
+};
+use serde::Serialize;
+use tauri::{AppHandle, State};
+
+// ---------------- Store ----------------
+
 struct ParseInfoStore {
-    /// A counter used to generate unique IDs.
     counter: AtomicUsize,
-    /// A mapping from unique IDs to Python objects.
     nodes: Mutex<HashMap<usize, Py<PyAny>>>,
 }
 
@@ -31,44 +29,29 @@ impl Default for ParseInfoStore {
     }
 }
 
-/// A simple example command.
+// ---------------- Commands ----------------
+
 #[tauri::command]
 fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+    format!("Hello, {name}! You've been greeted from Rust!")
 }
 
-/// Create a new ParseInformation instance by calling the get_parse_info function from a helper file.
-/// Returns an ID (handle) for the created instance.
 #[tauri::command]
-fn get_parse_info(grammar: String, store: State<ParseInfoStore>) -> Result<usize, String> {
+fn get_parse_info(grammar: String, store: State<ParseInfoStore>, app: AppHandle) -> Result<usize, String> {
+    // Just call sync bootstrap; it's idempotent.
+    ensure_python_sync(&app).map_err(|e| e.to_string())?;
+
     Python::with_gil(|py| {
-        // Extend sys.path so that Python can find your modules.
-        let sys = py.import("sys").map_err(|e| e.to_string())?;
-        let path_obj = sys.getattr("path").map_err(|e| e.to_string())?;
-        let sys_path = path_obj.downcast::<PyList>().map_err(|e| e.to_string())?;
-        // use the local repository, going from the cwd, if it exists
-        sys_path
-            .insert(0, "paredros_debugger")
-            .map_err(|e| e.to_string())?;
         let module = py
             .import("paredros_debugger.ParseInformation")
             .map_err(|e| e.to_string())?;
-        let parse_information_cls = module
-            .getattr("ParseInformation")
-            .map_err(|e| e.to_string())?;
-        // Call the function with the provided arguments; it returns a ParseInformation instance.
-        let py_instance = parse_information_cls
-            .call1((grammar,))
-            .map_err(|e| e.to_string())?;
-        let parse_info: Py<PyAny> = py_instance.into();
-
-        // Generate a unique ID and store the ParseInformation instance.
+        let cls = module.getattr("ParseInformation").map_err(|e| e.to_string())?;
+        let obj = cls.call1((grammar,)).map_err(|e| e.to_string())?;
         let id = store.counter.fetch_add(1, Ordering::SeqCst);
-        store.nodes.lock().unwrap().insert(id, parse_info);
+        store.nodes.lock().unwrap().insert(id, obj.into());
         Ok(id)
     })
 }
-
 
 /// Call the generate_parser method on a stored ParseInformation instance
 #[tauri::command]
@@ -191,7 +174,7 @@ struct Transition {
     matches: Vec<String>,
 }
 
-/// Mirrors the `grammar_rule_location` sub‐dict
+/// Mirrors the `grammar_rule_location` sub-dict
 #[derive(Debug, FromPyObject, Serialize)]
 #[pyo3(from_item_all)]
 struct GrammarRuleLocation {
@@ -306,22 +289,28 @@ fn step_backwards(id: usize, store: State<ParseInfoStore>) -> Result<String, Str
     })
 }
 
-fn main() {
-    // Prepare Python for multithreaded use.
-    pyo3::prepare_freethreaded_python();
+#[tauri::command]
+fn repair_python(app: AppHandle) -> Result<(), String> {
+    delete_venv(&app).map_err(|e| e.to_string())
+}
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  4.  main()
+// ─────────────────────────────────────────────────────────────────────────────
+
+fn main() {
     tauri::Builder::default()
-        .setup(|_app| {
+        .setup(|app| {
+            ensure_python_async(app.handle().clone());
             Ok(())
         })
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        // Make our ParseInfoStore available as Tauri state.
         .manage(ParseInfoStore::default())
-        // expose these commands to typescript
         .invoke_handler(tauri::generate_handler![
             greet,
             get_parse_info,
+            repair_python,
             generate_parser,
             parse_input,
             go_to_step,
