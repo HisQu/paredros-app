@@ -6,7 +6,6 @@ on:
       - main
 
 # This workflow will trigger on each push to the `release` branch to create or update a GitHub release, build your app, and upload the artifacts to the release.
-
 jobs:
   publish-tauri:
     permissions:
@@ -24,9 +23,6 @@ jobs:
           - platform: 'windows-latest'
             args: ''
     runs-on: ${{ matrix.platform }}
-    env:
-      # point PyO3’s build-script at the copy you just downloaded/built
-      PYO3_PYTHON: ${{ github.workspace }}/src-tauri/resources/py/${{ matrix.os }}/python3.12
     steps:
       - uses: actions/checkout@v4
 
@@ -49,23 +45,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-
-      # ---- pip + PyInstaller ----------------------------------------------
-      - name: Install Python deps
-        run: |
-          python -m pip install -U pip
-          pip install -r requirements.txt
-          pip install pyinstaller
-
-      - name: Freeze sidecar with PyInstaller
-        run: |
-          pyinstaller -F python_src/__main__.py \
-            --name mypython                      \
-            --add-data "python_src${{ runner.os == 'Windows' && ';' || ':' }}." \
-            --clean
-          mkdir -p src-tauri/binaries
-          cp dist/mypython${{ matrix.exe_ext }} \
-            "src-tauri/binaries/mypython-${{ matrix.rust_target }}${{ matrix.exe_ext }}"
 
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
