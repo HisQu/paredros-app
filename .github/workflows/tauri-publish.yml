@@ -66,20 +66,28 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
-          $PY_VER = Get-Content $env:PYTHON_VERSION_FILE | Select-Object -First 1
-          $URL = "https://www.python.org/ftp/python/$PY_VER/python-$PY_VER-embed-amd64.zip"
-          Write-Host "Downloading embeddable Python from: $URL"
+          $PY_VER_FULL = (Get-Content .python-version | Select-Object -First 1).Trim()
+          $ver         = [version]$PY_VER_FULL
+          # What you asked for: only use 3.12 when building names/paths
+          $PY_VER_MM        = "$($ver.Major).$($ver.Minor)"   # "3.12"
+          $PY_VER_MM_DIGITS = "$($ver.Major)$($ver.Minor)"    # "312"
+          
+          $URL = "https://www.python.org/ftp/python/$PY_VER_FULL/python-$PY_VER_FULL-embed-amd64.zip"
           $dst = "src-tauri/py/windows"
+          
           New-Item -Force -ItemType Directory $dst | Out-Null
           Invoke-WebRequest $URL -OutFile py.zip
-          Expand-Archive py.zip -DestinationPath tmp_py -Force
-          
-          $dllName = "python$($PY_VER.Replace('.', ''))" + ".dll"
-          Copy-Item "tmp_py/$dllName" "$dst/" -Force
-          
-          # Clean up
+          Expand-Archive py.zip -DestinationPath $dst -Force
           Remove-Item py.zip
-          Remove-Item tmp_py -Recurse -Force
+          
+          # Files that depend only on major.minor:
+          $pthFile = Join-Path $dst "python$PY_VER_MM_DIGITS._pth"
+          $dllFile = Join-Path $dst "python$PY_VER_MM_DIGITS.dll"
+          
+          # Comment out 'import site' so PYTHONPATH works
+          (Get-Content $pthFile) |
+          ForEach-Object { if ($_ -match '^\s*import\s+site') { "# $_" } else { $_ } } |
+          Set-Content $pthFile
 
       - name: install frontend dependencies
         run: yarn install
