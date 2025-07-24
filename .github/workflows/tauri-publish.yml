@@ -32,7 +32,7 @@ jobs:
 
       # read the version early so every step can reuse it
       - name: Read python version
-        id: pythonver
+        shell: bash
         run: echo "PYTHON_VERSION=$(head -n1 ${{ env.PYTHON_VERSION_FILE }})" >> $GITHUB_ENV
 
       - name: setup node
@@ -62,20 +62,24 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Download Python embeddable (Windows only)
+      - name: Download Python embeddable DLL (Windows only)
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
-          $PY_VER = "${{ env.PYTHON_VERSION }}"
+          $PY_VER = Get-Content $env:PYTHON_VERSION_FILE | Select-Object -First 1
           $URL = "https://www.python.org/ftp/python/$PY_VER/python-$PY_VER-embed-amd64.zip"
+          Write-Host "Downloading embeddable Python from: $URL"
           $dst = "src-tauri/py/windows"
           New-Item -Force -ItemType Directory $dst | Out-Null
           Invoke-WebRequest $URL -OutFile py.zip
-          Expand-Archive py.zip -DestinationPath $dst -Force
+          Expand-Archive py.zip -DestinationPath tmp_py -Force
+          
+          $dllName = "python$($PY_VER.Replace('.', ''))" + ".dll"
+          Copy-Item "tmp_py/$dllName" "$dst/" -Force
+          
+          # Clean up
           Remove-Item py.zip
-          (Get-Content "$dst/python312._pth").ForEach({
-            if ($_ -match '^\s*import\s+site') { "# $_" } else { $_ }
-          }) | Set-Content "$dst/python312._pth"
+          Remove-Item tmp_py -Recurse -Force
 
       - name: install frontend dependencies
         run: yarn install
