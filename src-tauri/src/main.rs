@@ -2,7 +2,7 @@
 
 mod python_env;
 
-use crate::python_env::{delete_venv, ensure_python_sync};
+use crate::python_env::{delete_venv, ensure_python_sync, PySetupProgress};
 use pyo3::prelude::*;
 use pythonize::depythonize; // keep if you still use it in other commands
 use std::collections::{HashMap, HashSet};
@@ -11,7 +11,7 @@ use std::sync::{
     Mutex,
 };
 use serde::Serialize;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, State, Emitter};
 use tauri_plugin_dialog::{MessageDialogKind, DialogExt}; // Add DialogExt here
 // ---------------- Store ----------------
 
@@ -307,6 +307,7 @@ fn main() {
                     Ok(())
                 }
                 Err(err_msg) => {
+                    let _ = app.handle().emit("py/setup-progress", PySetupProgress::Error(err_msg.to_string()));
                     app.dialog()
                         // Remove .blocking() here
                         .message(&format!("A critical error occurred with the Python backend:\n\n{}\n\nThe application must now close.", err_msg))

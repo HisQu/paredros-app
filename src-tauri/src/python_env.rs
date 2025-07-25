@@ -28,15 +28,6 @@ struct VenvState {
     req_hash: String,
 }
 
-/// Fire-and-forget async bootstrap that emits progress events.
-pub fn ensure_python_async(app: AppHandle) {
-    tauri::async_runtime::spawn_blocking(move || {
-        if let Err(e) = ensure_python_sync(&app) {
-            let _ = app.emit("py/setup-progress", PySetupProgress::Error(e.to_string()));
-        }
-    });
-}
-
 /// Synchronous bootstrap. Safe to call multiple times.
 pub fn ensure_python_sync(app: &AppHandle) -> Result<()> {
     let _ = app.emit("py/setup-progress", PySetupProgress::Checking);
