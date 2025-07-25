@@ -66,28 +66,35 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
-          $PY_VER_FULL = (Get-Content .python-version | Select-Object -First 1).Trim()
-          $ver         = [version]$PY_VER_FULL
-          # What you asked for: only use 3.12 when building names/paths
-          $PY_VER_MM        = "$($ver.Major).$($ver.Minor)"   # "3.12"
-          $PY_VER_MM_DIGITS = "$($ver.Major)$($ver.Minor)"    # "312"
+          # Read & parse the Python version
+          $PY_VER_FULL      = (Get-Content .python-version | Select-Object -First 1).Trim()
+          $ver              = [version]$PY_VER_FULL
+          $PY_VER_MM_DIGITS = "$($ver.Major)$($ver.Minor)"    # e.g. "312"
           
+          # Build URLs & paths
           $URL = "https://www.python.org/ftp/python/$PY_VER_FULL/python-$PY_VER_FULL-embed-amd64.zip"
           $dst = "src-tauri/py/windows"
+          $tmpDir = "embed_tmp"
           
-          New-Item -Force -ItemType Directory $dst | Out-Null
-          Invoke-WebRequest $URL -OutFile py.zip
-          Expand-Archive py.zip -DestinationPath $dst -Force
-          Remove-Item py.zip
+          # Prepare directories
+          New-Item -Force -ItemType Directory $dst   | Out-Null
+          Remove-Item -Force -Recurse $tmpDir -ErrorAction SilentlyContinue
+          New-Item -Force -ItemType Directory $tmpDir | Out-Null
           
-          # Files that depend only on major.minor:
-          $pthFile = Join-Path $dst "python$PY_VER_MM_DIGITS._pth"
-          $dllFile = Join-Path $dst "python$PY_VER_MM_DIGITS.dll"
+          # Download & extract to temp
+          Invoke-WebRequest $URL -OutFile "$tmpDir\py.zip" -UseBasicParsing
+          Expand-Archive "$tmpDir\py.zip" -DestinationPath $tmpDir -Force
           
-          # Comment out 'import site' so PYTHONPATH works
-          (Get-Content $pthFile) |
-          ForEach-Object { if ($_ -match '^\s*import\s+site') { "# $_" } else { $_ } } |
-          Set-Content $pthFile
+          # Copy just the DLL
+          $srcDll = Join-Path $tmpDir "python$PY_VER_MM_DIGITS.dll"
+          Copy-Item -Force $srcDll -Destination $dst
+          
+          # Debug output: absolute path of the copied DLL
+          $finalPath = (Resolve-Path (Join-Path $dst "python$PY_VER_MM_DIGITS.dll")).ProviderPath
+          Write-Host "[DEBUG] → python DLL placed at:`n  $finalPath`n"
+          
+          # Cleanup temp files
+          Remove-Item -Force -Recurse $tmpDir
 
       - name: install frontend dependencies
         run: yarn install
