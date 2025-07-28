@@ -186,7 +186,14 @@ fn bootstrap_python_env(app: &AppHandle) -> Result<PathBuf> {
 
         emit_progress(PySetupProgress::InstallingPackages);
 
-        let _ = ensure_git_on_path(app);
+        let git = ensure_git_on_path(app);
+        if git.is_err() {
+            show_error_dialog(app, "Git Not Found", "Please install Git to continue.");
+            return Err(git.unwrap_err());
+        }
+
+        // DEBUG
+        println!("Path variable looks like this: {}", std::env::var("PATH").unwrap_or_default());
 
         pip_install_requirements(&venv_python, &req_path).map_err(|e| {
             show_error_dialog(app, "Dependency Installation Failed", &e.to_string());
@@ -381,6 +388,10 @@ fn ensure_git_on_path(app: &AppHandle) -> anyhow::Result<bool> {
             let dir = git.parent()
                 .ok_or_else(|| anyhow::anyhow!("git path has no parent"))?;
             prepend_env_path("PATH", dir);
+
+            // DEBUG
+            println!("Found git at: {}", git.display());
+
             Ok(true)
         }
         Err(e) => {
