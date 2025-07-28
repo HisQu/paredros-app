@@ -12,7 +12,7 @@ import PythonSetupComponent from "./components/PythonSetupComponent.tsx";
 // Interfaces
 import {ParseStepInfo, UserGrammar} from "./interfaces/UserGrammar.ts";
 import {ParseTreeNode} from "./interfaces/ParseTreeNode.ts";
-import {PySetupProgress} from "../interfaces/PySetupProgress.ts"
+import type {PySetupProgressType} from "./interfaces/PySetupProgressType.ts"
 // Mockup/Helper values
 import {antlr4MonarchLanguage, sampleInputText, tempFileName} from "./constants";
 // Code Editor
@@ -36,13 +36,12 @@ import {
     ParserInputOverlay,
     ParseExpressionOverlay
 } from "./components/ParseTreeOverlays.tsx";
-import {Badge} from "./components/ui/badge.tsx";
 
 // END IMPORTS and constants
 
 function App() {
     // Python initialisation progress
-    const [pyProgress, setPyProgress] = useState<PySetupProgress>('Idle');
+    const [pyProgress, setPyProgress] = useState<PySetupProgressType>('Idle');
 
     // Initial file: a Grammar file with default content.
     const [activeFileIndex, setActiveFileIndex] = useState<String>();

@@ -2,13 +2,19 @@ import React, { useEffect } from 'react';
 import {invoke} from "@tauri-apps/api/core";
 import { listen } from '@tauri-apps/api/event';
 import { Button } from './ui/button';
-import {PySetupProgress} from "../interfaces/PySetupProgress.ts";
+import type {PySetupProgressType} from "../interfaces/PySetupProgressType.ts";
 
-const PythonSetupComponent: React.FC<Props> = ({ pyProgress, setPyProgress }) => {
+type PythonSetupProps = {
+    pyProgress: PySetupProgressType;
+    setPyProgress: React.Dispatch<React.SetStateAction<PySetupProgressType>>;
+};
+
+
+const PythonSetupComponent: React.FC<PythonSetupProps> = ({ pyProgress, setPyProgress }) => {
 
     useEffect(() => {
-        const unlistenPromise = listen<PySetupProgress>('py/setup-progress', (evt) => {
-            let payload: unknown;
+        const unlistenPromise = listen<PySetupProgressType>('py/setup-progress', (evt) => {
+            let payload: PySetupProgressType;
 
             try {
                 payload = JSON.parse(evt.payload as string);
