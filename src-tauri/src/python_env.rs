@@ -186,6 +186,8 @@ fn bootstrap_python_env(app: &AppHandle) -> Result<PathBuf> {
 
         emit_progress(PySetupProgress::InstallingPackages);
 
+        let _ = ensure_git_on_path(app);
+
         pip_install_requirements(&venv_python, &req_path).map_err(|e| {
             show_error_dialog(app, "Dependency Installation Failed", &e.to_string());
             e
@@ -371,6 +373,24 @@ fn prepend_env_path(var: &str, path: &Path) {
     let new_val = std::env::join_paths(paths)
         .expect("Failed to join PATH components");
     std::env::set_var(var, &new_val);
+}
+
+fn ensure_git_on_path(app: &AppHandle) -> anyhow::Result<bool> {
+    match which::which("git") {
+        Ok(git) => {
+            let dir = git.parent()
+                .ok_or_else(|| anyhow::anyhow!("git path has no parent"))?;
+            prepend_env_path("PATH", dir);
+            Ok(true)
+        }
+        Err(e) => {
+            let _ = app.emit(
+                "py/setup-progress",
+                PySetupProgress::Error(e.to_string()),
+            );
+            Ok(false)
+        }
+    }
 }
 
 fn antlr4_path(venv_dir: &Path) -> Option<PathBuf> {
