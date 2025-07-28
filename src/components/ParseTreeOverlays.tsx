@@ -7,7 +7,7 @@ interface OverlayProps {
 
 const BigLoadGrammarOverlay: React.FC<OverlayProps> = ({onClick}) => {
     return (
-        <div className="text-center mt-12">
+        <div className="flex-1 text-center mt-12">
             <svg
                 fill="none"
                 stroke="currentColor"

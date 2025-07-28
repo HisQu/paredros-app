@@ -47,7 +47,7 @@ const PythonSetupComponent: React.FC<PythonSetupProps> = ({ pyProgress, setPyPro
     }
 
     return (
-        <div className="w-screen h-screen flex flex-col items-center justify-center gap-4">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
             <Button onClick={handleInitPython}>Init Python</Button>
 
             {pyProgress !== 'Idle' && (

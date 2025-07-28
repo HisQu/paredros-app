@@ -339,7 +339,7 @@ function App() {
     }
 
     return (
-        <div className="bg-white text-zinc-900">
+        <div className="bg-white text-zinc-900 flex flex-col h-screen">
             {/* Unhandled Rejection Dialog */}
             <UnhandledRejectionDialog/>
 

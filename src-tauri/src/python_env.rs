@@ -138,6 +138,8 @@ fn bootstrap_python_env(app: &AppHandle) -> Result<PathBuf> {
         .resolve("pyenv", BaseDirectory::AppConfig)
         .context("cannot resolve app config dir")?;
 
+    println!("Using venv dir: {}", venv_dir.display());
+
     fs::create_dir_all(&venv_dir)
         .with_context(|| format!("failed to create venv directory at {}", venv_dir.display()))?;
 
@@ -371,14 +373,35 @@ fn prepend_env_path(var: &str, path: &Path) {
     std::env::set_var(var, &new_val);
 }
 
-fn run_antlr4(app: &AppHandle, venv_dir: &Path) -> Result<()> {
-    // If Java isn't installed, this will trigger the antlr4-tools prompt
-    let bin = venv_dir.join("bin").join("antlr4");
-    if !bin.exists() {
-        return Err(anyhow!("antlr4 command not found in venv bin"));
+fn antlr4_path(venv_dir: &Path) -> Option<PathBuf> {
+    #[cfg(windows)]
+    {
+        // pip may create either .bat or .cmd – look for both
+        for ext in ["bat", "cmd"] {
+            let p = venv_dir.join("Scripts").join(format!("antlr4.{ext}"));
+            if p.exists() { return Some(p) }
+        }
     }
+    #[cfg(not(windows))]
+    {
+        let p = venv_dir.join("bin").join("antlr4");
+        if p.exists() { return Some(p) }
+    }
+    None
+}
 
-    let mut cmd = Command::new(bin);
+fn run_antlr4(app: &AppHandle, venv_dir: &Path) -> Result<()> {
+    let antlr = antlr4_path(venv_dir)
+        .ok_or_else(|| {
+            let _ = app.emit(
+                "py/setup-progress",
+                PySetupProgress::Error("antlr4 launcher not found in the virtual-env".to_string()),
+            );
+            anyhow!("antlr4 launcher not found in the virtual-env")
+        })?;
+
+    // If Java isn't installed, this will trigger the antlr4-tools prompt
+    let mut cmd = Command::new(&antlr);
     cmd.stdin(std::process::Stdio::piped());
     cmd.stdout(std::process::Stdio::inherit());
     cmd.stderr(std::process::Stdio::inherit());
