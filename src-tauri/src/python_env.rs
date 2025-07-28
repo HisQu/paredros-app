@@ -6,6 +6,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::Command,
+    io::Write
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -13,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tauri::{path::BaseDirectory, AppHandle, Emitter, Manager};
 use tauri_plugin_dialog::{
-    DialogExt,               // trait that adds .dialog() to App / AppHandle
+    DialogExt, // trait that adds .dialog() to App / AppHandle
     MessageDialogButtons,
     MessageDialogKind,
 };
@@ -60,7 +61,10 @@ fn show_error_dialog(app: &AppHandle, title: &str, message: &str) {
             .blocking_show();
     });
 
-    let _ = app.emit("py/setup-progress", PySetupProgress::Error(message.to_string()));
+    let _ = app.emit(
+        "py/setup-progress",
+        PySetupProgress::Error(message.to_string()),
+    );
 }
 
 pub fn ensure_python_async(app: AppHandle) {
@@ -102,10 +106,7 @@ pub fn ensure_python_sync(app: &AppHandle) -> Result<()> {
                     .blocking_show();
             });
 
-            let _ = app.emit(
-                "py/setup-progress",
-                PySetupProgress::Error(e.to_string()),
-            );
+            let _ = app.emit("py/setup-progress", PySetupProgress::Error(e.to_string()));
             Err(e)
         }
     }
@@ -188,13 +189,18 @@ fn bootstrap_python_env(app: &AppHandle) -> Result<PathBuf> {
             e
         })?;
 
+        run_antlr4(app, &venv_dir).map_err(|e| {
+            show_error_dialog(app, "ANTLR Setup failed", &e.to_string());
+            e
+        })?;
+
+
         fs::write(&state_path, serde_json::to_vec(&desired)?)
             .context("failed to persist venv state")?;
     }
 
     Ok(venv_dir)
 }
-
 
 fn find_base_python(app: &AppHandle) -> Result<PathBuf> {
     if let Some(p) = find_embedded_python(app) {
@@ -216,7 +222,11 @@ fn find_embedded_python(app: &AppHandle) -> Option<PathBuf> {
     } else {
         return None;
     };
-    let bin = if cfg!(windows) { "python.exe" } else { "bin/python" };
+    let bin = if cfg!(windows) {
+        "python.exe"
+    } else {
+        "bin/python"
+    };
     let path = root.join(plat).join(bin);
     path.exists().then_some(path)
 }
@@ -227,7 +237,7 @@ fn create_venv(base_python: &Path, venv_dir: &Path) -> Result<()> {
     let output = Command::new(base_python)
         .args(["-m", "venv", "--upgrade-deps"])
         .arg(venv_dir)
-        .output()                                  
+        .output()
         .context("failed to spawn python -m venv")?;
 
     if !output.status.success() {
@@ -255,8 +265,12 @@ fn pip_install_requirements(venv_python: &Path, req_path: &Path) -> Result<()> {
     // Online install
     let output = Command::new(venv_python)
         .args([
-            "-m", "pip", "install", "--disable-pip-version-check",
-            "-r", req_path.to_str().unwrap(),
+            "-m",
+            "pip",
+            "install",
+            "--disable-pip-version-check",
+            "-r",
+            req_path.to_str().unwrap(),
         ])
         .output()
         .context("pip install failed to spawn")?;
@@ -276,7 +290,10 @@ fn pip_install_requirements(venv_python: &Path, req_path: &Path) -> Result<()> {
 
 fn get_python_version(py: &Path) -> Result<String> {
     let out = Command::new(py)
-        .args(["-c", "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"])
+        .args([
+            "-c",
+            "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+        ])
         .output()
         .context("could not run python to get version")?;
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
@@ -293,7 +310,10 @@ fn venv_python_path(venv_dir: &Path) -> PathBuf {
 fn configure_env_for_venv(venv_dir: &Path) -> Result<PathBuf> {
     // Work out site-packages
     let (lib_dir, site_packages) = if cfg!(windows) {
-        (venv_dir.join("Lib"), venv_dir.join("Lib").join("site-packages"))
+        (
+            venv_dir.join("Lib"),
+            venv_dir.join("Lib").join("site-packages"),
+        )
     } else {
         let lib_root = venv_dir.join("lib");
         let py_dir = std::fs::read_dir(&lib_root)?
@@ -338,7 +358,6 @@ fn configure_env_for_venv(venv_dir: &Path) -> Result<PathBuf> {
     Ok(site_packages)
 }
 
-
 fn prepend_env_path(var: &str, path: &Path) {
     let new_val = if let Ok(old) = std::env::var(var) {
         format!("{}:{}", path.display(), old)
@@ -346,4 +365,43 @@ fn prepend_env_path(var: &str, path: &Path) {
         path.display().to_string()
     };
     std::env::set_var(var, new_val);
+}
+
+fn run_antlr4(app: &AppHandle, venv_dir: &Path) -> Result<()> {
+    // If Java isn't installed, this will trigger the antlr4-tools prompt
+    let bin = venv_dir.join("bin").join("antlr4");
+    if !bin.exists() {
+        return Err(anyhow!("antlr4 command not found in venv bin"));
+    }
+
+    let mut cmd = Command::new(bin);
+    cmd.stdin(std::process::Stdio::piped());
+    cmd.stdout(std::process::Stdio::inherit());
+    cmd.stderr(std::process::Stdio::inherit());
+
+    let mut child = cmd.spawn().context("failed to spawn antlr4")?;
+    if let Some(mut stdin) = child.stdin.take() {
+        writeln!(stdin, "yes")?;
+    }
+    let output = child.wait_with_output().context("failed to wait on antlr4")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        let msg = format!(
+            "antlr4 failed with exit code {:?}:\n--- stderr ---\n{}\n--- stdout ---\n{}",
+            output.status.code(),
+            stderr.trim(),
+            stdout.trim()
+        );
+
+        let _ = app.emit(
+            "py/setup-progress",
+            PySetupProgress::Error(msg.clone()),
+        );
+
+        return Err(anyhow!(msg));
+    }
+    Ok(())
 }
