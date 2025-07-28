@@ -12,6 +12,11 @@ use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tauri::{path::BaseDirectory, AppHandle, Emitter, Manager};
+use tauri_plugin_dialog::{
+    DialogExt,               // trait that adds .dialog() to App / AppHandle
+    MessageDialogButtons,
+    MessageDialogKind,
+};
 
 #[derive(Debug, Serialize, Clone)]
 pub enum PySetupProgress {
@@ -28,18 +33,82 @@ struct VenvState {
     req_hash: String,
 }
 
+/// Read the desired Python *major.minor* from the checked‑in `.python-version`
+/// (e.g. "3.11.4" → "3.11").  Compile‑time include keeps the binary
+/// self‑contained just like `requirements.txt`.
+fn desired_py_version() -> String {
+    let full = include_str!("../../.python-version").trim();
+    let mut parts = full.split('.');
+    match (parts.next(), parts.next()) {
+        (Some(major), Some(minor)) => format!("{}.{}", major, minor),
+        _ => full.to_string(), // fallback if the file is just "3.11"
+    }
+}
+
+fn show_error_dialog(app: &AppHandle, title: &str, message: &str) {
+    let handle = app.clone();
+    let msg = message.to_string();
+    let title = title.to_string();
+
+    std::thread::spawn(move || {
+        handle
+            .dialog()
+            .message(msg)
+            .title(title)
+            .kind(MessageDialogKind::Error)
+            .buttons(MessageDialogButtons::Ok)
+            .blocking_show();
+    });
+
+    let _ = app.emit("py/setup-progress", PySetupProgress::Error(message.to_string()));
+}
+
+pub fn ensure_python_async(app: AppHandle) {
+    tauri::async_runtime::spawn_blocking(move || {
+        if let Err(e) = ensure_python_sync(&app) {
+            let _ = app.emit("py/setup-progress", PySetupProgress::Error(e.to_string()));
+        }
+    });
+}
+
 /// Synchronous bootstrap. Safe to call multiple times.
 pub fn ensure_python_sync(app: &AppHandle) -> Result<()> {
     let _ = app.emit("py/setup-progress", PySetupProgress::Checking);
 
-    let venv_dir = bootstrap_python_env(app)?;
-    configure_env_for_venv(&venv_dir)?;
+    match bootstrap_python_env(app) {
+        Ok(venv_dir) => {
+            configure_env_for_venv(&venv_dir)?;
+            pyo3::prepare_freethreaded_python();
+            let _ = app.emit("py/setup-progress", PySetupProgress::Done);
+            Ok(())
+        }
 
-    // Initialise PyO3/Python (idempotent).
-    pyo3::prepare_freethreaded_python();
+        // ---------- v2 dialog on error ----------
+        Err(e) => {
+            let handle = app.clone();
+            let desired_python_version = desired_py_version();
 
-    let _ = app.emit("py/setup-progress", PySetupProgress::Done);
-    Ok(())
+            // `blocking_show` must not run on the main thread, so spawn one:
+            std::thread::spawn(move || {
+                handle
+                    .dialog()
+                    .message(
+                        format!("No Python interpreter was found on your system.\n\
+                         Please install Python {desired_python_version} or later and restart the application."),
+                    )
+                    .title("Python not detected")
+                    .kind(MessageDialogKind::Error)
+                    .buttons(MessageDialogButtons::Ok)
+                    .blocking_show();
+            });
+
+            let _ = app.emit(
+                "py/setup-progress",
+                PySetupProgress::Error(e.to_string()),
+            );
+            Err(e)
+        }
+    }
 }
 
 /// Delete the venv so it gets rebuilt next run.
@@ -57,17 +126,23 @@ pub fn delete_venv(app: &AppHandle) -> Result<()> {
 // ---------------- internal helpers ----------------
 
 fn bootstrap_python_env(app: &AppHandle) -> Result<PathBuf> {
-    // Put venv under per-user app config dir
+    let emit_progress = |progress| {
+        let _ = app.emit("py/setup-progress", progress);
+    };
+
+    emit_progress(PySetupProgress::Checking);
+
     let venv_dir = app
         .path()
         .resolve("pyenv", BaseDirectory::AppConfig)
         .context("cannot resolve app config dir")?;
-    fs::create_dir_all(&venv_dir)?;
 
-    // requirements.txt lives in project root (../.. from src-tauri/src)
+    fs::create_dir_all(&venv_dir)
+        .with_context(|| format!("failed to create venv directory at {}", venv_dir.display()))?;
+
     let req_bytes: &[u8] = include_bytes!("../../requirements.txt");
     let req_path = venv_dir.join("requirements.txt");
-    fs::write(&req_path, req_bytes)?;
+    fs::write(&req_path, req_bytes).context("failed to write requirements.txt")?;
 
     let req_hash = {
         let mut h = Sha256::new();
@@ -81,8 +156,15 @@ fn bootstrap_python_env(app: &AppHandle) -> Result<PathBuf> {
         .and_then(|b| serde_json::from_slice(&b).ok())
         .unwrap_or_default();
 
-    let base_python = find_base_python(app)?;
-    let py_version = get_python_version(&base_python)?;
+    let base_python = find_base_python(app).map_err(|e| {
+        show_error_dialog(app, "Python Interpreter Not Found", &e.to_string());
+        e
+    })?;
+
+    let py_version = get_python_version(&base_python).map_err(|e| {
+        show_error_dialog(app, "Failed to Get Python Version", &e.to_string());
+        e
+    })?;
 
     let desired = VenvState {
         python_version: py_version.clone(),
@@ -92,20 +174,27 @@ fn bootstrap_python_env(app: &AppHandle) -> Result<PathBuf> {
     let venv_python = venv_python_path(&venv_dir);
 
     if !venv_python.exists() || current != desired {
-        let _ = app.emit("py/setup-progress", PySetupProgress::CreatingVenv);
-        create_venv(&base_python, &venv_dir)?;
+        emit_progress(PySetupProgress::CreatingVenv);
 
-        let _ = app.emit(
-            "py/setup-progress",
-            PySetupProgress::InstallingPackages,
-        );
-        pip_install_requirements(&venv_python, &req_path, app)?;
+        create_venv(&base_python, &venv_dir).map_err(|e| {
+            show_error_dialog(app, "Virtual Environment Creation Failed", &e.to_string());
+            e
+        })?;
 
-        fs::write(&state_path, serde_json::to_vec(&desired)?)?;
+        emit_progress(PySetupProgress::InstallingPackages);
+
+        pip_install_requirements(&venv_python, &req_path).map_err(|e| {
+            show_error_dialog(app, "Dependency Installation Failed", &e.to_string());
+            e
+        })?;
+
+        fs::write(&state_path, serde_json::to_vec(&desired)?)
+            .context("failed to persist venv state")?;
     }
 
     Ok(venv_dir)
 }
+
 
 fn find_base_python(app: &AppHandle) -> Result<PathBuf> {
     if let Some(p) = find_embedded_python(app) {
@@ -133,58 +222,54 @@ fn find_embedded_python(app: &AppHandle) -> Option<PathBuf> {
 }
 
 fn create_venv(base_python: &Path, venv_dir: &Path) -> Result<()> {
-    let status = Command::new(base_python)
-        .args(["-m", "venv", "--upgrade-deps"]) // Python >= 3.10
+    // Spawn the command and CAPTURE its output instead of just waiting for the status.
+
+    let output = Command::new(base_python)
+        .args(["-m", "venv", "--upgrade-deps"])
         .arg(venv_dir)
-        .status()
+        .output()                                  
         .context("failed to spawn python -m venv")?;
-    if !status.success() {
-        return Err(anyhow!("venv creation failed"));
+
+    if !output.status.success() {
+        // Turn the raw bytes into UTF‑8 strings (lossy is fine for diagnostics)
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        // Compose a rich error message; skip empty streams.
+        let mut msg = String::from("venv creation failed");
+        if !stderr.trim().is_empty() {
+            msg.push_str(" (stderr):\n");
+            msg.push_str(stderr.trim());
+        }
+        if !stdout.trim().is_empty() {
+            msg.push_str("\n(stdout):\n");
+            msg.push_str(stdout.trim());
+        }
+
+        return Err(anyhow!(msg));
     }
     Ok(())
 }
 
-fn pip_install_requirements(venv_python: &Path, req_path: &Path, app: &AppHandle) -> Result<()> {
-    // Online install; if you ship wheels, switch to --no-index/--find-links
-    let status = Command::new(venv_python)
+fn pip_install_requirements(venv_python: &Path, req_path: &Path) -> Result<()> {
+    // Online install
+    let output = Command::new(venv_python)
         .args([
-            "-m",
-            "pip",
-            "install",
-            "--disable-pip-version-check",
-            "-r",
-            req_path.to_str().unwrap(),
+            "-m", "pip", "install", "--disable-pip-version-check",
+            "-r", req_path.to_str().unwrap(),
         ])
-        .status()
+        .output()
         .context("pip install failed to spawn")?;
-    if !status.success() {
-        return Err(anyhow!("pip install -r requirements.txt failed"));
-    }
 
-    // Optional: install your local project
-    pip_install_local_project(venv_python, app)?;
-    Ok(())
-}
-
-fn pip_install_local_project(venv_python: &Path, app: &AppHandle) -> Result<()> {
-    // Adjust to where your python package actually lives. This tries resources first,
-    // then falls back to the repo root for dev.
-    let project_path = app
-        .path()
-        .resolve("python_src/paredros_debugger", BaseDirectory::Resource)
-        .unwrap_or_else(|_| PathBuf::from("../paredros_debugger"));
-
-    if !project_path.exists() {
-        return Ok(()); // nothing to install
-    }
-
-    let status = Command::new(venv_python)
-        .args(["-m", "pip", "install", "-e"])
-        .arg(project_path)
-        .status()
-        .context("pip install -e <local project> failed to spawn")?;
-    if !status.success() {
-        return Err(anyhow!("pip install -e <local project> failed"));
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let msg = format!(
+            "pip install -r requirements.txt failed:\n{}\n{}",
+            stderr.trim(),
+            stdout.trim()
+        );
+        return Err(anyhow!(msg));
     }
     Ok(())
 }

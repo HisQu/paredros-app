@@ -8,9 +8,11 @@ import './App.css';
 import Flow, {FlowHandle} from "./components/FlowPlot.tsx";
 import {Button} from './components/ui/button.tsx';
 import UnhandledRejectionDialog from "./components/UnhandledRejectionDialog.tsx";
+import PythonSetupComponent from "./components/PythonSetupComponent.tsx";
 // Interfaces
 import {ParseStepInfo, UserGrammar} from "./interfaces/UserGrammar.ts";
 import {ParseTreeNode} from "./interfaces/ParseTreeNode.ts";
+import {PySetupProgress} from "../interfaces/PySetupProgress.ts"
 // Mockup/Helper values
 import {antlr4MonarchLanguage, sampleInputText, tempFileName} from "./constants";
 // Code Editor
@@ -34,10 +36,14 @@ import {
     ParserInputOverlay,
     ParseExpressionOverlay
 } from "./components/ParseTreeOverlays.tsx";
+import {Badge} from "./components/ui/badge.tsx";
 
 // END IMPORTS and constants
 
 function App() {
+    // Python initialisation progress
+    const [pyProgress, setPyProgress] = useState<PySetupProgress>('Idle');
+
     // Initial file: a Grammar file with default content.
     const [activeFileIndex, setActiveFileIndex] = useState<String>();
 
@@ -347,114 +353,120 @@ function App() {
                     <h1 className="text-2xl font-bold text-middle">πάρεδρος</h1>
                     <span
                         className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2">
-            Grammar debugging environment
-          </span>
-                    <Button color="lime" onClick={load_grammar_file}>Load a grammar file</Button>
-                    <Button color="indigo" onClick={generate_parser_and_save_grammar_files}>Generate Parser (and save
-                        grammar files)</Button>
-                    <Button color="amber" onClick={parse_input}>Parse Input File</Button>
+                        Grammar debugging environment
+                    </span>
+                    {pyProgress === 'Done' && <>
+                        <Button color="lime" onClick={load_grammar_file}>Load a grammar file</Button>
+                        <Button color="indigo" onClick={generate_parser_and_save_grammar_files}>Generate Parser (and save
+                            grammar files)</Button>
+                        <Button color="amber" onClick={parse_input}>Parse Input File</Button>
+                    </>}
                 </div>
             </header>
-            {userGrammar ? <div className="w-screen h-screen">
-                <div className="flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
-                    {info?.input_context_snippet ? info.input_context_snippet : ""}
-                </div>
-                <Allotment vertical={true}>
-                    {/* Augmented Parse Tree */}
-                    <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
-                        {(nodes && edges) /* The input has been parsed, and there is a parser */
-                            ? (hasChangedGrammarFile(userGrammar)
-                                ? (<ParserInputOverlay onClick={generate_parser_save_grammar_files_parse_input}/>)
-                                : <Flow ref={flowRef} node={nodes} edge={edges} step_backwards={step_backwards}
-                                        step_forwards={step_forwards} current_step={info?.step_id} step_action={go_to_step}/>)
-                            : ((generateParserResult)
-                                    ? (<ParseExpressionOverlay onClick={parse_input}/>)
-                                    : (<GenerateParserOverlay onClick={generate_parser}/>)
-                            )}
-                    </Allotment.Pane>
+            {pyProgress !== 'Done' ? <PythonSetupComponent pyProgress={pyProgress} setPyProgress={setPyProgress} /> :
+                userGrammar ? <div className="w-screen h-screen">
+                    <div className="flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
+                        {info?.input_context_snippet ? info.input_context_snippet : ""}
+                    </div>
+                    <Allotment vertical={true}>
+                        {/* Augmented Parse Tree */}
+                        <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
+                            {(nodes && edges) /* The input has been parsed, and there is a parser */
+                                ? (hasChangedGrammarFile(userGrammar)
+                                    ? (<ParserInputOverlay onClick={generate_parser_save_grammar_files_parse_input}/>)
+                                    : <Flow ref={flowRef} node={nodes} edge={edges} step_backwards={step_backwards}
+                                            step_forwards={step_forwards} current_step={info?.step_id}
+                                            step_action={go_to_step}/>)
+                                : ((generateParserResult)
+                                        ? (<ParseExpressionOverlay onClick={parse_input}/>)
+                                        : (<GenerateParserOverlay onClick={generate_parser}/>)
+                                )}
+                        </Allotment.Pane>
 
-                    {/* Editor */}
-                    <Allotment.Pane minSize={100} className="h-96 w-full">
-                        <Allotment vertical={false}>
-                            <Allotment.Pane minSize={300} className="h-md bg-blue-400">
-                                <h2 className="text-2xl p-2 text-gray-100">Grammar Editor</h2>
-                                {/* Grid */}
-                                {userGrammar && providerRef.current ? (
-                                    <div className="flex space-x-4">
-                                        <div className="w-1/4">
-                                            {/* File Tree */}
-                                            <div className="bg-blue-200 p-2 h-full overflow-auto">
-                                                <UncontrolledTreeEnvironment
-                                                    dataProvider={providerRef.current}
-                                                    // @ts-ignore
-                                                    getItemTitle={item => {
-                                                        const file = userGrammar?.grammar_files[item.index];
-                                                        return (
-                                                            <>
-                                                                {item.data}
-                                                                {file && file.changed && (
-                                                                    <span
-                                                                        className="ml-1 inline-block w-2 h-2 bg-blue-500 rounded-full"/>
-                                                                )}
-                                                            </>
-                                                        );
-                                                    }}
-                                                    viewState={{}}
-                                                    onSelectItems={(items) => {
-                                                        if (items.length > 0) {
-                                                            console.log("selected items", userGrammar?.grammar_files[items[0]]);
-                                                            const selectedFile = userGrammar?.grammar_files[items[0]];
-                                                            if (selectedFile) {
-                                                                console.log("setactivefileinded", String(items[0]))
-                                                                setActiveFileIndex(String(items[0]));
+                        {/* Editor */}
+                        <Allotment.Pane minSize={100} className="h-96 w-full">
+                            <Allotment vertical={false}>
+                                <Allotment.Pane minSize={300} className="h-md bg-blue-400">
+                                    <h2 className="text-2xl p-2 text-gray-100">Grammar Editor</h2>
+                                    {/* Grid */}
+                                    {userGrammar && providerRef.current ? (
+                                        <div className="flex space-x-4">
+                                            <div className="w-1/4">
+                                                {/* File Tree */}
+                                                <div className="bg-blue-200 p-2 h-full overflow-auto">
+                                                    <UncontrolledTreeEnvironment
+                                                        dataProvider={providerRef.current}
+                                                        // @ts-ignore
+                                                        getItemTitle={item => {
+                                                            const file = userGrammar?.grammar_files[item.index];
+                                                            return (
+                                                                <>
+                                                                    {item.data}
+                                                                    {file && file.changed && (
+                                                                        <span
+                                                                            className="ml-1 inline-block w-2 h-2 bg-blue-500 rounded-full"/>
+                                                                    )}
+                                                                </>
+                                                            );
+                                                        }}
+                                                        viewState={{}}
+                                                        onSelectItems={(items) => {
+                                                            if (items.length > 0) {
+                                                                console.log("selected items", userGrammar?.grammar_files[items[0]]);
+                                                                const selectedFile = userGrammar?.grammar_files[items[0]];
+                                                                if (selectedFile) {
+                                                                    console.log("setactivefileinded", String(items[0]))
+                                                                    setActiveFileIndex(String(items[0]));
+                                                                }
                                                             }
-                                                        }
+                                                        }}
+                                                    >
+                                                        <div className="text-gray-900 transition duration-200">
+                                                            <Tree treeId="tree-1" rootItem="root"
+                                                                  treeLabel="Tree Example"/>
+                                                        </div>
+                                                    </UncontrolledTreeEnvironment>
+                                                </div>
+                                            </div>
+                                            {/* Grammar Editor */}
+                                            <div className="w-3/4">
+                                                <Editor
+                                                    className="w-full"
+                                                    height="82vh"
+                                                    language={"antlr4"}
+                                                    onMount={handleEditorDidMount}
+                                                    value={editorContent}
+                                                    onChange={handleEditorChange}
+                                                    beforeMount={(monaco) => {
+                                                        // Register the custom ANTLR4 language with Monaco
+                                                        monaco.languages.register({id: 'antlr4'});
+                                                        monaco.languages.setMonarchTokensProvider('antlr4', antlr4MonarchLanguage);
                                                     }}
-                                                >
-                                                    <div className="text-gray-900 transition duration-200">
-                                                        <Tree treeId="tree-1" rootItem="root" treeLabel="Tree Example"/>
-                                                    </div>
-                                                </UncontrolledTreeEnvironment>
+                                                    options={{
+                                                        wordWrap: "on",
+                                                    }}
+                                                />
                                             </div>
                                         </div>
-                                        {/* Grammar Editor */}
-                                        <div className="w-3/4">
-                                            <Editor
-                                                className="w-full"
-                                                height="82vh"
-                                                language={"antlr4"}
-                                                onMount={handleEditorDidMount}
-                                                value={editorContent}
-                                                onChange={handleEditorChange}
-                                                beforeMount={(monaco) => {
-                                                    // Register the custom ANTLR4 language with Monaco
-                                                    monaco.languages.register({id: 'antlr4'});
-                                                    monaco.languages.setMonarchTokensProvider('antlr4', antlr4MonarchLanguage);
-                                                }}
-                                                options={{
-                                                    wordWrap: "on",
-                                                }}
-                                            />
-                                        </div>
+                                    ) : (<LoadGrammarOverlay onClick={load_grammar_file}/>)}
+                                </Allotment.Pane>
+                                <Allotment.Pane minSize={200} className="h-md bg-violet-500">
+                                    <div className="p-2 border-b border-zinc-200">
+                                        <h2 className="text-2xl text-white">Expression</h2>
                                     </div>
-                                ) : (<LoadGrammarOverlay onClick={load_grammar_file}/>)}
-                            </Allotment.Pane>
-                            <Allotment.Pane minSize={200} className="h-md bg-violet-500">
-                                <div className="p-2 border-b border-zinc-200">
-                                    <h2 className="text-2xl text-white">Expression</h2>
-                                </div>
-                                <Editor height="90vh"
-                                        defaultLanguage="xml"
-                                        options={{
-                                            wordWrap: "on",
-                                        }}
-                                        defaultValue={sampleInputText}
-                                        onChange={(value) => setExpressionContent(value || "")}/>
-                            </Allotment.Pane>
-                        </Allotment>
-                    </Allotment.Pane>
-                </Allotment>
-            </div> : <BigLoadGrammarOverlay onClick={load_grammar_file}/>}
+                                    <Editor height="90vh"
+                                            defaultLanguage="xml"
+                                            options={{
+                                                wordWrap: "on",
+                                            }}
+                                            defaultValue={sampleInputText}
+                                            onChange={(value) => setExpressionContent(value || "")}/>
+                                </Allotment.Pane>
+                            </Allotment>
+                        </Allotment.Pane>
+                    </Allotment>
+                </div> : <BigLoadGrammarOverlay onClick={load_grammar_file}/>
+            }
         </div>
     );
 }

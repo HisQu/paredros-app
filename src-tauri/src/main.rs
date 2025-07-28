@@ -2,7 +2,7 @@
 
 mod python_env;
 
-use crate::python_env::{delete_venv, ensure_python_sync, PySetupProgress};
+use crate::python_env::{delete_venv, ensure_python_async};
 use pyo3::prelude::*;
 use pythonize::depythonize; // keep if you still use it in other commands
 use std::collections::{HashMap, HashSet};
@@ -11,8 +11,7 @@ use std::sync::{
     Mutex,
 };
 use serde::Serialize;
-use tauri::{AppHandle, State, Emitter};
-use tauri_plugin_dialog::{MessageDialogKind, DialogExt}; // Add DialogExt here
+use tauri::{AppHandle, State, Builder};
 // ---------------- Store ----------------
 
 struct ParseInfoStore {
@@ -32,15 +31,7 @@ impl Default for ParseInfoStore {
 // ---------------- Commands ----------------
 
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {name}! You've been greeted from Rust!")
-}
-
-#[tauri::command]
-fn get_parse_info(grammar: String, store: State<ParseInfoStore>, app: AppHandle) -> Result<usize, String> {
-    // Just call sync bootstrap; it's idempotent.
-    ensure_python_sync(&app).map_err(|e| e.to_string())?;
-
+fn get_parse_info(grammar: String, store: State<ParseInfoStore>) -> Result<usize, String> {
     Python::with_gil(|py| {
         let module = py
             .import("paredros_debugger.ParseInformation")
@@ -290,43 +281,27 @@ fn step_backwards(id: usize, store: State<ParseInfoStore>) -> Result<String, Str
 }
 
 #[tauri::command]
+fn initialise_python_frontend_wrapper(app: tauri::AppHandle) -> Result<(), String> {
+    ensure_python_async(app);
+    Ok(())
+}
+
+#[tauri::command]
 fn repair_python(app: AppHandle) -> Result<(), String> {
     delete_venv(&app).map_err(|e| e.to_string())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  4.  main()
+//  main
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn main() {
-    tauri::Builder::default()
-        .setup(|app| {
-            match ensure_python_sync(app.handle()) {
-                Ok(_) => {
-                    // Environment is ready, continue.
-                    Ok(())
-                }
-                Err(err_msg) => {
-                    let _ = app.handle().emit("py/setup-progress", PySetupProgress::Error(err_msg.to_string()));
-                    app.dialog()
-                        // Remove .blocking() here
-                        .message(&format!("A critical error occurred with the Python backend:\n\n{}\n\nThe application must now close.", err_msg))
-                        .kind(MessageDialogKind::Error)
-                        .show(|_| {});
-
-                    // Exit the application gracefully.
-                    app.handle().exit(1);
-
-                    // Return an error to halt the setup process.
-                    Err(err_msg.into())
-                }
-            }
-        })
+    Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(ParseInfoStore::default())
         .invoke_handler(tauri::generate_handler![
-            greet,
+            initialise_python_frontend_wrapper,
             get_parse_info,
             repair_python,
             generate_parser,

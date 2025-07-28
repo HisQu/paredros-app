@@ -79,7 +79,7 @@ error Command failed with exit code 127.
 info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
 ```
 
-First fix is to install e.g. `sudo apt install python3.12-dev`, which contains the appropriate libraries. Tauri should find them
+First fix is to install e.g. `sudo apt install python3.12-dev`, which contains the appropriate libraries. Tauri should find them.
 
 You can also fix this by setting the environment variable `LD_LIBRARY_PATH`. You need to of course use the correct python version.
 If you use `pyenv` you can do this for example:
@@ -108,3 +108,8 @@ npm run tauri
 
 - [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
 
+
+## For deployment (What does the user need on his machine?)
+
+- Python 3.12 installed (with `python3.12-venv`)
+- Java 11 installed (else antlr4 will install Java JRE 11, at the time of writing)
