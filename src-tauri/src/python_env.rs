@@ -359,12 +359,16 @@ fn configure_env_for_venv(venv_dir: &Path) -> Result<PathBuf> {
 }
 
 fn prepend_env_path(var: &str, path: &Path) {
-    let new_val = if let Ok(old) = std::env::var(var) {
-        format!("{}:{}", path.display(), old)
-    } else {
-        path.display().to_string()
-    };
-    std::env::set_var(var, new_val);
+    let mut paths: Vec<_> = std::env::var_os(var)
+        .map(|p| std::env::split_paths(&p).collect())
+        .unwrap_or_else(Vec::new);
+
+    // Put our path at the front
+    paths.insert(0, path.to_path_buf());
+
+    let new_val = std::env::join_paths(paths)
+        .expect("Failed to join PATH components");
+    std::env::set_var(var, &new_val);
 }
 
 fn run_antlr4(app: &AppHandle, venv_dir: &Path) -> Result<()> {
