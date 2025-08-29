@@ -1,10 +1,38 @@
 # Paredros App
 
+## Table of cotent
+- [Hint: Setup for Deployment](#setup-for-deployment)
+- [About Paredros App](#about-paredros-app)
+- [Usage](#usage)
+- [Installing Instructions](#installing-instructions)
+    - [Quickstart instrutions](#quickstart)
+    - [Step by Step Instructions](#setting-up-step-by-step)
+- [Additional Hints](#additional-hints)
+    - [Compatibility issue with NVIDIA graphics card](#compatibility-issue-with-nvidia-graphics-card)
+    - [The display is blank](the-display-is-blank-but-the-buttons-work)
+    - [Python Libraries missing?](#python-libraries-missing)
+    - [Template (Tauri + React + Typescript)](#template-tauri--react--typescript)
+    - [Recommended IDE Setup](#recommended-ide-setup)
+
 ## Setup for Deployment
+This repository is a component of the research data infrastructure "Historische Quellen" (abbreviated as 'HisQu'). It serves as a collaborative initiative aimed at fostering the systematic organization, analysis, and accessibility of historical sources. For more detailed information about the goals, scope, and participating institutions, please visit the official [website](https://hisqu.de/).
+
 Currently the newest version can be obtained via the [Github build action](https://github.com/HisQu/paredros-app/actions), triggered by any new commits or manually.
 Download the artifact for your system and run it.
 
-## Setting up for development and building
+## About Paredros App
+The **Paredros App** is an interactive Ontology tool with a visualization environment designed for working with grammars defined in [**ANTLR4**](https://www.antlr.org/). Its primary purpose is to support researchers and developers engaged in the structural analysis of complex textual corpora, such as historical sources, charters, and regesta. By providing a seamless integration of parsing, error analysis, and graphical exploration of syntactic structures, the application enables precise inspection and iterative refinement of grammar definitions. The tool combines a modern **React/TypeScript frontend** with a high-performance **Rust/Python backend** (via Tauri and PyO3), thereby offering both usability and computational efficiency in real-time parsing workflows.
+
+Functionally, the system allows users to import custom grammar specifications (e.g., `.g4` files) alongside input texts, execute parsing routines, and visualize results as parse trees, token flows, and intermediate structures. Errors in the parsing process are directly surfaced within the workflow, enabling immediate grammar adjustments and iterative debugging. Typical usage involves preparing a project environment (installation of Python, Node.js, build tools, and dependencies), loading grammar-input pairs, initiating parsing, and using the interactive visualization layer to detect anomalies or unexpected parser behavior. Adjusted grammars can be reloaded and tested repeatedly, with results optionally exported for documentation. Through this design, the Paredros App bridges advanced parsing technology with practical usability, making it a valuable instrument for both computational linguistics research and applied software development.
+
+
+## Usage
+To initiate the parsing workflow, the user first selects a suitable [**ANTLR**](https://www.antlr.org/) grammar file (e.g., Regest.g4) that encodes the syntactic and lexical rules for the input domain. Alongside the grammar specification, an input file (e.g., input.txt) containing the text to be analyzed must be loaded. Once both resources are provided, the system invokes the ANTLR4 runtime via Python, generating a parse tree and token sequence based on the defined grammar. This allows for an immediate inspection of how the rules apply to real data, ensuring that the parsing logic aligns with the structural properties of the chosen text corpus.
+
+The app subsequently provides interactive visualization and debugging mechanisms. The parse tree is rendered graphically, enabling stepwise exploration of syntactic nodes, while the token flow representation exposes the segmentation process at the lexical level. Errors, such as incomplete matches or unhandled inputs, are reported in real time and annotated within the interface, offering actionable feedback for grammar refinement. Through the integration of interactive components—such as ParseTreeNodeComponent and FlowPlot—users can examine rule applications, inspect node-level metadata, and explore alternative parsing paths. By iteratively editing the grammar in the embedded editor, reloading files, and re-executing the parsing pipeline, users establish a closed feedback loop that supports incremental grammar optimization and documentation of results (including exports and screenshots for scholarly or development purposes).
+
+## Installing Instructions
+At first of all make sure your have already installed all prerequisites. Then you can decide if you want to use the Quickstart, or by following the Step-By-Step Instruction.
 
 ### Prerequisites
 The following needs to be installed for development:
@@ -13,35 +41,92 @@ The following needs to be installed for development:
 - [npm](https://nodejs.org/en/download) or [yarn](https://classic.yarnpkg.com/lang/en/) for java-script package management
 - [Tauri](https://v1.tauri.app/v1/guides/getting-started/prerequisites) prerequisites for development
 
-### Step by Step
 
-1. Create a virtual environment for Python, which will be used for the ANTLR runtime.
-The path should be the same so that it works with the tauri app.
-```shell
-python -m venv .venv
-```
-2. Source the created venv and install the `requirements.txt` using 
-```shell
-source .venv/bin/activate && pip install -r requirements.txt
-```
+### Quickstart
 
+**On Windows:**
+Open the cmd in your directionary through clicking right mouse key. Click on ``Open with Terminal``.  Now follow these instructions:
+1. For install all the needed DLL's please type ````.\setup1.bat```` and press Enter. 
+    Don't get shocked, if some loading bars will open.
+2. Copy the printed command and exceute ````.\.venv\Scripts\Activate.ps1```` through typing and oressing Enter.
+3. For running this App excute following command: ````.\setup2.bat```` through typing and pressing Enter
+
+**On Linux:**
+Open your Terminal at your dictionary. No follow these instructions:
+1. Exceute ``setup.sh``.
+2. Install all node packages:
+    ``` shell
+    yarn # OR
+    npm i
+    ```
+
+3. Start the tauri installation with the command
+
+    ``` shell
+    yarn run tauri dev # OR
+    npm run tauri dev
+    ```
+
+### Setting up Step by Step
+**On Windows**
+1. Install Python by executing: 
+    ```shell
+    winget install --id Python.Python.3.12 --source winget
+    ```
+2. Install NodeJS by excuting:
+    ```cshellmd
+    winget install -e --id OpenJS.NodeJS.LTS
+    ```
+3. Install WebView2-Runtime by executing:
+    ```shell
+    winget install Microsoft.EdgeWebView2Runtime
+    ```
+4. Setting up your Powershell-Execution-Policy by executing:
+    ```shell
+    powershell -Command "Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass"
+    ```
+5. Install all needed Python3 DLLs by executing:
+    ```shell
+    winget install --id Python.Python.3.12 --source winget
+    ```
+6. Download the building tools from: [visualstudio.microsoft.com](https://visualstudio.microsoft.com/de/visual-cpp-build-tools/).
+7. Create and activate the [Virtual Envirement](https://github.com/HisQu/.github-private/tree/main/coding-practices/PythonVENV) (watch out the article for further informations)
+
+
+8. Install all python dependencies recursivly from [requirements.txt](https://github.com/HisQu/.github-private/blob/main/coding-practices/PythonRequirementsText/README.md).
+9. Install yarn and npm by exceuting: 
+    ```shell
+    yarn install
+    npm install
+    ```
+10. Activate yarn by exceuting:
+    ```shell
+    corepack enable
+    corepack prepare yarn@stable --activate
+    ```
+11. Start the app:
+    ```shell
+    yarn tauri dev
+    ```
+
+**On Linux**
+1. Create and activate the [Virtual Envirement](https://github.com/HisQu/.github-private/tree/main/coding-practices/PythonVENV) (watch out the article for further informations).
+2. Install all python dependencies recursivly from [requirements.txt](https://github.com/HisQu/.github-private/blob/main/coding-practices/PythonRequirementsText/README.md).
 3. Install all requirements for Tauri development, see [Prerequisites](https://tauri.app/start/prerequisites/).
-
 4. Install all node packages:
-```shell
-yarn # OR
-npm i
-```
-
+    ```shell
+    yarn # OR
+    npm i
+    ```
 5. Start the tauri installation with the command
-```shell
-yarn run tauri dev # OR
-npm run tauri dev
-```
+    ```shell
+    yarn run tauri dev # OR
+    npm run tauri dev
+    ```
 
-## Hints
+## Additional Hints
 
-### Compatibility issue with Linux and NVIDIA graphics card 
+### Compatibility issue with NVIDIA graphics card 
 What if you get?
 ```
 ** (paredros-app:35128): WARNING **: 13:14:18.714: webkit_settings_set_enable_offline_web_application_cache is deprecated and does nothing.
