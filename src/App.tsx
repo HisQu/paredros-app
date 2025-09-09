@@ -354,12 +354,6 @@ function App() {
                         className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2">
                         Grammar debugging environment
                     </span>
-                    {pyProgress === 'Done' && <>
-                        <Button color="lime" onClick={load_grammar_file}>Load a grammar file</Button>
-                        <Button color="indigo" onClick={generate_parser_and_save_grammar_files}>Generate Parser (and save
-                            grammar files)</Button>
-                        <Button color="amber" onClick={parse_input}>Parse Input File</Button>
-                    </>}
                 </div>
             </header>
             {pyProgress !== 'Done' ? <PythonSetupComponent pyProgress={pyProgress} setPyProgress={setPyProgress} /> :
