@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 // Tauri
 import {invoke} from "@tauri-apps/api/core";
 import {open} from '@tauri-apps/plugin-dialog';
@@ -36,7 +36,6 @@ import {
     ParserInputOverlay,
     ParseExpressionOverlay
 } from "./components/ParseTreeOverlays.tsx";
-import {FolderOpenIcon} from "@heroicons/react/24/outline";
 
 // END IMPORTS and constants
 
