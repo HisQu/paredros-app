@@ -2,7 +2,7 @@
 
 mod python_env;
 
-use crate::python_env::{delete_venv, ensure_python_async, ensure_python_sync};
+use crate::python_env::{delete_venv, ensure_python_async};
 use pyo3::prelude::*;
 use pythonize::depythonize; // keep if you still use it in other commands
 use std::collections::{HashMap, HashSet};
@@ -11,8 +11,7 @@ use std::sync::{
     Mutex,
 };
 use serde::Serialize;
-use tauri::{AppHandle, State};
-
+use tauri::{AppHandle, State, Builder};
 // ---------------- Store ----------------
 
 struct ParseInfoStore {
@@ -32,15 +31,7 @@ impl Default for ParseInfoStore {
 // ---------------- Commands ----------------
 
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {name}! You've been greeted from Rust!")
-}
-
-#[tauri::command]
-fn get_parse_info(grammar: String, store: State<ParseInfoStore>, app: AppHandle) -> Result<usize, String> {
-    // Just call sync bootstrap; it's idempotent.
-    ensure_python_sync(&app).map_err(|e| e.to_string())?;
-
+fn get_parse_info(grammar: String, store: State<ParseInfoStore>) -> Result<usize, String> {
     Python::with_gil(|py| {
         let module = py
             .import("paredros_debugger.ParseInformation")
@@ -187,12 +178,13 @@ struct GrammarRuleLocation {
     end_pos: usize,
 }
 
-/// Mirrors the ParseStepInfo return type of `get_current_parse_step_info`
+/// Mirrors `ParseStepInfo`, return type of `get_current_parse_step_info`
 #[derive(Debug, FromPyObject, Serialize)]
 #[pyo3(from_item_all)]
+#[serde(rename_all = "snake_case")]
 struct ParseStepInfo {
     step_id: String,
-    node_type: String,
+    step_type: String,
     rule_name: Option<String>,
     rule_stack: Vec<String>,
     state: String,
@@ -200,11 +192,10 @@ struct ParseStepInfo {
     token_index: usize,
     chosen_transition_index: Option<i32>,
     input_text_context: String,
-    lookahead_repr: String,
+    next_token_stream_index: usize,
+    lookahead_repr: Vec<String>,
     matching_error: bool,
     is_error_node: bool,
-    next_input_token: Option<String>,
-    next_input_literal: Option<String>,
     possible_transitions: Option<Vec<Transition>>,
     grammar_rule_location: Option<GrammarRuleLocation>,
     input_context_snippet: Option<String>,
@@ -290,25 +281,27 @@ fn step_backwards(id: usize, store: State<ParseInfoStore>) -> Result<String, Str
 }
 
 #[tauri::command]
+fn initialise_python_frontend_wrapper(app: tauri::AppHandle) -> Result<(), String> {
+    ensure_python_async(app);
+    Ok(())
+}
+
+#[tauri::command]
 fn repair_python(app: AppHandle) -> Result<(), String> {
     delete_venv(&app).map_err(|e| e.to_string())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  4.  main()
+//  main
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn main() {
-    tauri::Builder::default()
-        .setup(|app| {
-            ensure_python_async(app.handle().clone());
-            Ok(())
-        })
+    Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(ParseInfoStore::default())
         .invoke_handler(tauri::generate_handler![
-            greet,
+            initialise_python_frontend_wrapper,
             get_parse_info,
             repair_python,
             generate_parser,

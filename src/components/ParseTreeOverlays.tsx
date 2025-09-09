@@ -1,5 +1,6 @@
 import React from "react";
 import {BeakerIcon, BoltIcon, FolderOpenIcon} from "@heroicons/react/24/outline";
+import {Button} from "./ui/button";
 
 interface OverlayProps {
     onClick: () => void;
@@ -7,7 +8,7 @@ interface OverlayProps {
 
 const BigLoadGrammarOverlay: React.FC<OverlayProps> = ({onClick}) => {
     return (
-        <div className="text-center mt-12">
+        <div className="flex-1 text-center mt-12">
             <svg
                 fill="none"
                 stroke="currentColor"
@@ -26,14 +27,13 @@ const BigLoadGrammarOverlay: React.FC<OverlayProps> = ({onClick}) => {
             <h3 className="mt-2 text-sm font-semibold text-gray-900">No grammar loaded</h3>
             <p className="mt-1 text-sm text-gray-500">Get started by loading a grammar.</p>
             <div className="mt-6">
-                <button
-                    type="button"
+                <Button
                     onClick={onClick}
-                    className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                    color={"lime"}
                 >
                     <FolderOpenIcon aria-hidden="true" className="mr-1.5 -ml-0.5 size-5"/>
                     Open Grammar file
-                </button>
+                </Button>
             </div>
         </div>
     )

@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - main
+      - feature/ship-python
+
+env:
+  PYTHON_VERSION_FILE: .python-version
 
 # This workflow will trigger on each push to the `release` branch to create or update a GitHub release, build your app, and upload the artifacts to the release.
-
 jobs:
   publish-tauri:
     permissions:
@@ -24,13 +27,14 @@ jobs:
           - platform: 'windows-latest'
             args: ''
     runs-on: ${{ matrix.platform }}
-    env:
-      # point PyO3’s build-script at the copy you just downloaded/built
-      PYO3_PYTHON: ${{ github.workspace }}/src-tauri/resources/py/${{ matrix.os }}/python3.12
     steps:
       - uses: actions/checkout@v4
 
-      # ---- tooling --------------------------------------------------------
+      # read the version early so every step can reuse it
+      - name: Read python version
+        shell: bash
+        run: echo "PYTHON_VERSION=$(head -n1 ${{ env.PYTHON_VERSION_FILE }})" >> $GITHUB_ENV
+
       - name: setup node
         uses: actions/setup-node@v4
         with:
@@ -43,29 +47,14 @@ jobs:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
+        with:
+          # pulls from the same file → no duplication
+          python-version-file: ${{ env.PYTHON_VERSION_FILE }}
 
-      - uses: actions/setup-java@v4           # antlr4-tools requires Java only at build time
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
-      # ---- pip + PyInstaller ----------------------------------------------
-      - name: Install Python deps
-        run: |
-          python -m pip install -U pip
-          pip install -r requirements.txt
-          pip install pyinstaller
-
-      - name: Freeze sidecar with PyInstaller
-        run: |
-          pyinstaller -F python_src/__main__.py \
-            --name mypython                      \
-            --add-data "python_src${{ runner.os == 'Windows' && ';' || ':' }}." \
-            --clean
-          mkdir -p src-tauri/binaries
-          cp dist/mypython${{ matrix.exe_ext }} \
-            "src-tauri/binaries/mypython-${{ matrix.rust_target }}${{ matrix.exe_ext }}"
 
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
@@ -73,8 +62,42 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
+      - name: Download Python embeddable DLL (Windows only)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Read & parse the Python version
+          $PY_VER_FULL      = (Get-Content .python-version | Select-Object -First 1).Trim()
+          $ver              = [version]$PY_VER_FULL
+          $PY_VER_MM_DIGITS = "$($ver.Major)$($ver.Minor)"    # e.g. "312"
+          
+          # Build URLs & paths
+          $URL = "https://www.python.org/ftp/python/$PY_VER_FULL/python-$PY_VER_FULL-embed-amd64.zip"
+          $dst = "src-tauri/py/windows"
+          $tmpDir = "embed_tmp"
+          
+          # Prepare directories
+          New-Item -Force -ItemType Directory $dst   | Out-Null
+          Remove-Item -Force -Recurse $tmpDir -ErrorAction SilentlyContinue
+          New-Item -Force -ItemType Directory $tmpDir | Out-Null
+          
+          # Download & extract to temp
+          Invoke-WebRequest $URL -OutFile "$tmpDir\py.zip" -UseBasicParsing
+          Expand-Archive "$tmpDir\py.zip" -DestinationPath $tmpDir -Force
+          
+          # Copy just the DLL
+          $srcDll = Join-Path $tmpDir "python$PY_VER_MM_DIGITS.dll"
+          Copy-Item -Force $srcDll -Destination $dst
+          
+          # Debug output: absolute path of the copied DLL
+          $finalPath = (Resolve-Path (Join-Path $dst "python$PY_VER_MM_DIGITS.dll")).ProviderPath
+          Write-Host "[DEBUG] → python DLL placed at:`n  $finalPath`n"
+          
+          # Cleanup temp files
+          Remove-Item -Force -Recurse $tmpDir
+
       - name: install frontend dependencies
-        run: yarn install # change this to npm, pnpm or bun depending on which one you use.
+        run: yarn install
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -85,4 +108,5 @@ jobs:
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
+          includeDebug: true
           args: ${{ matrix.args }}
