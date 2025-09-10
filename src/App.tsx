@@ -9,7 +9,7 @@ import Flow, {FlowHandle} from "./components/FlowPlot.tsx";
 import UnhandledRejectionDialog from "./components/UnhandledRejectionDialog.tsx";
 import PythonSetupComponent from "./components/PythonSetupComponent.tsx";
 // Interfaces
-import {ParseStepInfo, UserGrammar} from "./interfaces/UserGrammar.ts";
+import {GrammarRuleLocation, ParseStepInfo, UserGrammar} from "./interfaces/UserGrammar.ts";
 import {ParseTreeNode} from "./interfaces/ParseTreeNode.ts";
 import type {PySetupProgressType} from "./interfaces/PySetupProgressType.ts"
 // Mockup/Helper values
@@ -62,6 +62,8 @@ function App() {
         });
     };
 
+
+
     // Refs / References declarations
     const providerRef = useRef<GrammarFilesDataProvider>();
     const flowRef = useRef<FlowHandle>(null);
@@ -101,6 +103,13 @@ function App() {
      * 4. generate_parser
      * 5. parse, which parses a specific input
      *
+     * This will generate a parse tree, which we can get using get_json_parse_tree
+     * 6. get_json_parse_tree, which returns the nodes and edges of the parse tree
+     * 7. get_parse_step_info, which returns information about the current parse step
+     *
+     * The meta-information (parse step info) is then stored in the variable "info"
+     * 8. update_grammar_rule_decorations, which updates the decorations in the grammar editor
+     * 9. update_expression_decorations, which updates the decorations in the expression editor
      *
      **/
 
@@ -146,6 +155,9 @@ function App() {
     // grammar editor content
     const [editorContent, setEditorContent] = useState<string>("");
     useEffect(() => {
+        // DEBUG
+        console.log("Active file index changed:", activeFileIndex);
+
         // Set the initial content of the editor when the userGrammar changes
         if (userGrammar && activeFileIndex) {
             const file = userGrammar.grammar_files[String(activeFileIndex)];
@@ -290,14 +302,14 @@ function App() {
         }
     }
 
-    async function step_forwards() {
+    async function stepForwards() {
         // DEBUG
         console.log("Step Forwards")
         await invoke("step_forwards", {id: parseInfo, step: 1})
         await get_json_parse_tree();
     }
 
-    async function step_backwards() {
+    async function stepBackwards() {
         // DEBUG
         console.log("Step Backwards")
         await invoke("step_backwards", {id: parseInfo})
@@ -354,6 +366,70 @@ function App() {
             // Clear grammar decorations if they exist
             expressionDecorationCollectionRef.current?.clear();
         }
+    }
+
+    // Listen on changes to parse step info, and update decorations accordingly
+    useEffect(() => {
+        const loc = info?.grammar_rule_location;
+        if (!loc) return;
+
+        // If we're not on the correct file, switch first.
+        if (activeFileIndex !== loc.file_path) {
+            setActiveFileIndex(loc.file_path);
+            // Early return: wait for editor model/content to update,
+            // then a separate effect (below) will place the decoration.
+            return;
+        }
+
+        // If already on correct file, decorate immediately
+        updateGrammarRuleDecoration(loc);
+    }, [info, activeFileIndex]);
+
+    function updateGrammarRuleDecoration(loc: GrammarRuleLocation) {
+        const monaco = grammarMonacoRef.current;
+        const ed = grammarEditorRef.current;
+        if (!monaco || !ed) return;
+
+        const model = ed.getModel();
+        if (!model) return;
+
+        // Clear any previous grammar highlight
+        grammarDecorationCollectionRef.current?.clear();
+
+        const full = model.getValue();
+
+        // 1) Try exact content match
+        let idx = (loc.content ?? '').length ? full.indexOf(loc.content) : -1;
+
+        // 2) Fallback: first non-empty line of the rule
+        let fallbackLen = 0;
+        if (idx === -1 && loc.content) {
+            const firstNonEmpty = loc.content.split(/\r?\n/).find(l => l.trim().length > 0);
+            if (firstNonEmpty) {
+                idx = full.indexOf(firstNonEmpty);
+                fallbackLen = firstNonEmpty.length;
+            }
+        }
+
+        let range: any;
+
+        if (idx !== -1) {
+            // We found text—convert offsets to Monaco positions
+            const startPos = model.getPositionAt(idx);
+            const endPos = model.getPositionAt(idx + (fallbackLen || loc.content.length));
+            range = new monaco.Range(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column);
+        } else {
+            // Last fallback: highlight the whole start_line
+            const line = Math.min(Math.max(loc.start_line || 1, 1), model.getLineCount());
+            range = new monaco.Range(line, 1, line, model.getLineMaxColumn(line));
+        }
+
+        // Apply decoration
+        const deco = [{ range, options: { className: 'rule-highlight' } }];
+        grammarDecorationCollectionRef.current = ed.createDecorationsCollection(deco);
+
+        // Bring into view
+        ed.revealRangeInCenter(range);
     }
 
     function testExpressionDecoration() {
@@ -413,14 +489,17 @@ function App() {
                     <div className="flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
                         {info?.input_context_snippet ? info.input_context_snippet : ""}
                     </div>
+                    <div>
+                        {info?.grammar_rule_location ? info.grammar_rule_location.file_path : ""}
+                    </div>
                     <Allotment vertical={true}>
                         {/* Augmented Parse Tree */}
                         <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
                             {(nodes && edges) /* The input has been parsed, and there is a parser */
                                 ? (hasChangedGrammarFile(userGrammar)
                                     ? (<ParserInputOverlay onClick={generate_parser_save_grammar_files_parse_input}/>)
-                                    : <Flow ref={flowRef} node={nodes} edge={edges} step_backwards={step_backwards}
-                                            step_forwards={step_forwards} current_step={info?.step_id}
+                                    : <Flow ref={flowRef} node={nodes} edge={edges} step_backwards={stepBackwards}
+                                            step_forwards={stepForwards} current_step={info?.step_id}
                                             step_action={go_to_step}/>)
                                 : ((generateParserResult)
                                         ? (<ParseExpressionOverlay onClick={parse_input}/>)
