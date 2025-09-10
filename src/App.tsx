@@ -6,7 +6,6 @@ import {BaseDirectory, writeTextFile} from '@tauri-apps/plugin-fs';
 // UI Components
 import './App.css';
 import Flow, {FlowHandle} from "./components/FlowPlot.tsx";
-import {Button} from './components/ui/button.tsx';
 import UnhandledRejectionDialog from "./components/UnhandledRejectionDialog.tsx";
 import PythonSetupComponent from "./components/PythonSetupComponent.tsx";
 // Interfaces
@@ -17,6 +16,7 @@ import type {PySetupProgressType} from "./interfaces/PySetupProgressType.ts"
 import {antlr4MonarchLanguage, sampleInputText, tempFileName} from "./constants";
 // Code Editor
 import Editor, {OnMount} from '@monaco-editor/react';
+import {editor} from "monaco-editor";
 // Allotment (Resizable Panes)
 import {Allotment} from "allotment";
 import "allotment/dist/style.css";
@@ -36,6 +36,7 @@ import {
     ParserInputOverlay,
     ParseExpressionOverlay
 } from "./components/ParseTreeOverlays.tsx";
+import {Button} from "./components/ui/button.tsx";
 
 // END IMPORTS and constants
 
@@ -62,15 +63,27 @@ function App() {
     };
 
     // Refs / References declarations
-    const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
-    const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
-    const flowRef = useRef<FlowHandle>(null);
     const providerRef = useRef<GrammarFilesDataProvider>();
-    /*const decorationCollectionRef = useRef();*/
+    const flowRef = useRef<FlowHandle>(null);
 
-    const handleEditorDidMount: OnMount = (editor, monaco) => {
-        editorRef.current = editor;
-        monacoRef.current = monaco;
+    // decorations in the grammar monaco editor
+    const grammarEditorRef = useRef<Parameters<OnMount>[0] | null>(null);
+    const grammarMonacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+    const grammarDecorationCollectionRef = useRef<editor.IEditorDecorationsCollection>();
+
+    const handleGrammarEditorDidMount: OnMount = (editor, monaco) => {
+        grammarEditorRef.current = editor;
+        grammarMonacoRef.current = monaco;
+    };
+
+    // decorations in the expression monaco editor
+    const expressionEditorRef = useRef<Parameters<OnMount>[0] | null>(null);
+    const expressionMonacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+    const expressionDecorationCollectionRef = useRef<editor.IEditorDecorationsCollection>();
+
+    const handleExpressionEditorDidMount: OnMount = (editor, monaco) => {
+        expressionEditorRef.current = editor;
+        expressionMonacoRef.current = monaco;
     };
 
     const [grammarFileLocation, setGrammarFileLocation] = useState("");
@@ -84,7 +97,7 @@ function App() {
      * 3. This calls  get_user_grammar, which returns a UserGrammar instance
      *
      *
-     * Afterwards we can call methods of the ParseInformation instance as we wish.
+     * Afterwards, we can call methods of the ParseInformation instance as we wish.
      * 4. generate_parser
      * 5. parse, which parses a specific input
      *
@@ -249,12 +262,6 @@ function App() {
         }
     }, [userGrammar]);
 
-    /*
-    async function get_parse_tree() {
-      setParseTree(await invoke("get_parse_tree", { id: parseInfo }));
-    }
-    */
-
     async function get_user_grammar() {
         // DEBUG
         console.log("get_user_grammar");
@@ -321,18 +328,61 @@ function App() {
         setInfo(_response);
     }
 
-    /*function testDecoration() {
-        if (monacoRef.current) {
-            decorationCollectionRef.current = editorRef.current.createDecorationsCollection([
-                {
-                    range: new monacoRef.current.Range(3, 1, 3, 1),
-                    options: {
-                        beforeContentClassName: "my-inline-label"
-                    }
-                }
-            ]);
+    function testGrammarDecoration() {
+        const monaco = grammarMonacoRef.current;
+        const editor = grammarEditorRef.current;
+
+        if (monaco && editor) {
+            if (!grammarDecorationCollectionRef.current) {
+                // First time: create the collection
+                grammarDecorationCollectionRef.current = editor.createDecorationsCollection([
+                    {
+                        range: new monaco.Range(3, 1, 3, 1),
+                        options: { beforeContentClassName: "inline-hint" },
+                    },
+                ]);
+            } else {
+                // Already exists: append to it
+                grammarDecorationCollectionRef.current.append([
+                    {
+                        range: new monaco.Range(3, 1, 3, 1),
+                        options: { beforeContentClassName: "inline-hint" },
+                    },
+                ]);
+            }
+
+            // Clear grammar decorations if they exist
+            expressionDecorationCollectionRef.current?.clear();
         }
-    }*/
+    }
+
+    function testExpressionDecoration() {
+        const monaco = expressionMonacoRef.current;
+        const editor = expressionEditorRef.current;
+
+        if (monaco && editor) {
+            if (!expressionDecorationCollectionRef.current) {
+                // First time: create the collection
+                expressionDecorationCollectionRef.current = editor.createDecorationsCollection([
+                    {
+                        range: new monaco.Range(3, 1, 3, 1),
+                        options: { beforeContentClassName: "inline-hint" },
+                    },
+                ]);
+            } else {
+                // Already exists: append to it
+                expressionDecorationCollectionRef.current.append([
+                    {
+                        range: new monaco.Range(3, 1, 3, 1),
+                        options: { beforeContentClassName: "inline-hint" },
+                    },
+                ]);
+            }
+
+            // Clear grammar decorations if they exist
+            grammarDecorationCollectionRef.current?.clear();
+        }
+    }
 
     function hasChangedGrammarFile(userGrammar: UserGrammar): boolean {
         return Object.values(userGrammar.grammar_files).some(file => file.changed);
@@ -354,9 +404,11 @@ function App() {
                         className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2">
                         Grammar debugging environment
                     </span>
+                    <Button color={"indigo"} onClick={testGrammarDecoration}>Test Grammar Decoration</Button>
+                    <Button color={"amber"} onClick={testExpressionDecoration}>Test Expression Decoration</Button>
                 </div>
             </header>
-            {pyProgress !== 'Done' ? <PythonSetupComponent pyProgress={pyProgress} setPyProgress={setPyProgress} /> :
+            {pyProgress !== 'Done' ? <PythonSetupComponent pyProgress={pyProgress} setPyProgress={setPyProgress}/> :
                 userGrammar ? <div className="w-screen h-screen">
                     <div className="flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
                         {info?.input_context_snippet ? info.input_context_snippet : ""}
@@ -405,10 +457,8 @@ function App() {
                                                         viewState={{}}
                                                         onSelectItems={(items) => {
                                                             if (items.length > 0) {
-                                                                console.log("selected items", userGrammar?.grammar_files[items[0]]);
                                                                 const selectedFile = userGrammar?.grammar_files[items[0]];
                                                                 if (selectedFile) {
-                                                                    console.log("setactivefileinded", String(items[0]))
                                                                     setActiveFileIndex(String(items[0]));
                                                                 }
                                                             }
@@ -427,7 +477,7 @@ function App() {
                                                     className="w-full"
                                                     height="82vh"
                                                     language={"antlr4"}
-                                                    onMount={handleEditorDidMount}
+                                                    onMount={handleGrammarEditorDidMount}
                                                     value={editorContent}
                                                     onChange={handleEditorChange}
                                                     beforeMount={(monaco) => {
@@ -447,12 +497,14 @@ function App() {
                                     <div className="p-2 border-b border-zinc-200">
                                         <h2 className="text-2xl text-white">Expression</h2>
                                     </div>
-                                    <Editor height="90vh"
+                                    {/* Expression Editor */}
+                                    <Editor height="82vh"
                                             defaultLanguage="xml"
                                             options={{
                                                 wordWrap: "on",
                                             }}
                                             defaultValue={sampleInputText}
+                                            onMount={handleExpressionEditorDidMount}
                                             onChange={(value) => setExpressionContent(value || "")}/>
                                 </Allotment.Pane>
                             </Allotment>

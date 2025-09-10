@@ -117,7 +117,7 @@
     fill: #f7f9fb;
   }
 
-.my-inline-label::before {
+.inline-hint::before {
     content: "🛈 Hint: ";
     color: gray;
     font-style: italic;
