@@ -126,7 +126,7 @@
 
 /* Highlight the current grammar rule */
 .rule-inline-hint::before {
-    content: "🛈 Current Rule";
+    content: "🔍";
     font-weight: bold;
     margin-right: 6px;
 }

@@ -63,7 +63,6 @@ function App() {
     };
 
 
-
     // Refs / References declarations
     const providerRef = useRef<GrammarFilesDataProvider>();
     const flowRef = useRef<FlowHandle>(null);
@@ -350,7 +349,7 @@ function App() {
                 grammarDecorationCollectionRef.current = editor.createDecorationsCollection([
                     {
                         range: new monaco.Range(3, 1, 3, 1),
-                        options: { beforeContentClassName: "inline-hint" },
+                        options: {beforeContentClassName: "inline-hint"},
                     },
                 ]);
             } else {
@@ -358,7 +357,7 @@ function App() {
                 grammarDecorationCollectionRef.current.append([
                     {
                         range: new monaco.Range(3, 1, 3, 1),
-                        options: { beforeContentClassName: "inline-hint" },
+                        options: {beforeContentClassName: "inline-hint"},
                     },
                 ]);
             }
@@ -393,16 +392,12 @@ function App() {
         const model = ed.getModel();
         if (!model) return;
 
-        // Clear any previous grammar highlight
         grammarDecorationCollectionRef.current?.clear();
 
         const full = model.getValue();
-
-        // 1) Try exact content match
         let idx = (loc.content ?? '').length ? full.indexOf(loc.content) : -1;
-
-        // 2) Fallback: first non-empty line of the rule
         let fallbackLen = 0;
+
         if (idx === -1 && loc.content) {
             const firstNonEmpty = loc.content.split(/\r?\n/).find(l => l.trim().length > 0);
             if (firstNonEmpty) {
@@ -412,23 +407,24 @@ function App() {
         }
 
         let range: any;
-
         if (idx !== -1) {
-            // We found text—convert offsets to Monaco positions
             const startPos = model.getPositionAt(idx);
             const endPos = model.getPositionAt(idx + (fallbackLen || loc.content.length));
             range = new monaco.Range(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column);
         } else {
-            // Last fallback: highlight the whole start_line
             const line = Math.min(Math.max(loc.start_line || 1, 1), model.getLineCount());
             range = new monaco.Range(line, 1, line, model.getLineMaxColumn(line));
         }
 
-        // Apply decoration
-        const deco = [{ range, options: { className: 'rule-highlight' } }];
+        const deco = [{
+            range,
+            options: {
+                className: 'rule-highlight',
+                beforeContentClassName: 'rule-inline-hint',
+            }
+        }];
         grammarDecorationCollectionRef.current = ed.createDecorationsCollection(deco);
 
-        // Bring into view
         ed.revealRangeInCenter(range);
     }
 
@@ -442,7 +438,7 @@ function App() {
                 expressionDecorationCollectionRef.current = editor.createDecorationsCollection([
                     {
                         range: new monaco.Range(3, 1, 3, 1),
-                        options: { beforeContentClassName: "inline-hint" },
+                        options: {beforeContentClassName: "inline-hint"},
                     },
                 ]);
             } else {
@@ -450,7 +446,7 @@ function App() {
                 expressionDecorationCollectionRef.current.append([
                     {
                         range: new monaco.Range(3, 1, 3, 1),
-                        options: { beforeContentClassName: "inline-hint" },
+                        options: {beforeContentClassName: "inline-hint"},
                     },
                 ]);
             }
@@ -472,29 +468,32 @@ function App() {
             {/* tailwindcss Safelist */}
             <span className={"bg-blue-300 bg-blue-400 bg-violet-300 bg-violet-400"}></span>
 
-            {/* Header */}
-            <header className="p-4 border-b border-zinc-200 grid grid-cols-1 gap-2">
-                <div className="flex gap-2 w-full h-10 items-center">
-                    <h1 className="text-2xl font-bold text-middle">πάρεδρος</h1>
-                    <span
-                        className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2">
-                        Grammar debugging environment
-                    </span>
-                    <Button color={"indigo"} onClick={testGrammarDecoration}>Test Grammar Decoration</Button>
-                    <Button color={"amber"} onClick={testExpressionDecoration}>Test Expression Decoration</Button>
-                </div>
-            </header>
             {pyProgress !== 'Done' ? <PythonSetupComponent pyProgress={pyProgress} setPyProgress={setPyProgress}/> :
                 userGrammar ? <div className="w-screen h-screen">
-                    <div className="flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
-                        {info?.input_context_snippet ? info.input_context_snippet : ""}
-                    </div>
-                    <div>
-                        {info?.grammar_rule_location ? info.grammar_rule_location.file_path : ""}
-                    </div>
                     <Allotment vertical={true}>
-                        {/* Augmented Parse Tree */}
+                        {/* Augmented Parse Tree (React Flow) */}
                         <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
+                            {/* Header */}
+                            <header className="p-4 border-b border-zinc-200 grid grid-cols-1 gap-2">
+                                <div className="flex gap-2 w-full h-10 items-center">
+                                    <h1 className="text-2xl font-bold text-middle">πάρεδρος</h1>
+                                    <span
+                                        className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2">
+                        Grammar debugging environment
+                    </span>
+                                    <Button color={"indigo"} onClick={testGrammarDecoration}>Test Grammar
+                                        Decoration</Button>
+                                    <Button color={"amber"} onClick={testExpressionDecoration}>Test Expression
+                                        Decoration</Button>
+                                </div>
+                            </header>
+                            <div
+                                className="flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
+                                {info?.input_context_snippet ? info.input_context_snippet : ""}
+                            </div>
+                            <div>
+                                {info?.grammar_rule_location ? info.grammar_rule_location.file_path : ""}
+                            </div>
                             {(nodes && edges) /* The input has been parsed, and there is a parser */
                                 ? (hasChangedGrammarFile(userGrammar)
                                     ? (<ParserInputOverlay onClick={generate_parser_save_grammar_files_parse_input}/>)
@@ -508,53 +507,50 @@ function App() {
                         </Allotment.Pane>
 
                         {/* Editor */}
-                        <Allotment.Pane minSize={100} className="h-96 w-full">
+                        <Allotment.Pane minSize={200} maxSize={800} className="h-96 w-full">
                             <Allotment vertical={false}>
                                 <Allotment.Pane minSize={300} className="h-md bg-blue-400">
                                     <h2 className="text-2xl p-2 text-gray-100">Grammar Editor</h2>
                                     {/* Grid */}
                                     {userGrammar && providerRef.current ? (
-                                        <div className="flex space-x-4">
-                                            <div className="w-1/4">
-                                                {/* File Tree */}
-                                                <div className="bg-blue-200 p-2 h-full overflow-auto">
-                                                    <UncontrolledTreeEnvironment
-                                                        dataProvider={providerRef.current}
-                                                        // @ts-ignore
-                                                        getItemTitle={item => {
-                                                            const file = userGrammar?.grammar_files[item.index];
-                                                            return (
-                                                                <>
-                                                                    {item.data}
-                                                                    {file && file.changed && (
-                                                                        <span
-                                                                            className="ml-1 inline-block w-2 h-2 bg-blue-500 rounded-full"/>
-                                                                    )}
-                                                                </>
-                                                            );
-                                                        }}
-                                                        viewState={{}}
-                                                        onSelectItems={(items) => {
-                                                            if (items.length > 0) {
-                                                                const selectedFile = userGrammar?.grammar_files[items[0]];
-                                                                if (selectedFile) {
-                                                                    setActiveFileIndex(String(items[0]));
-                                                                }
+                                        <div className="flex space-x-4 h-full">
+                                            {/* File Tree */}
+                                            <div className="w-1/4 bg-blue-200 p-2 h-full overflow-auto">
+                                                <UncontrolledTreeEnvironment
+                                                    dataProvider={providerRef.current}
+                                                    // @ts-ignore
+                                                    getItemTitle={item => {
+                                                        const file = userGrammar?.grammar_files[item.index];
+                                                        return (
+                                                            <>
+                                                                {item.data}
+                                                                {file && file.changed && (
+                                                                    <span
+                                                                        className="ml-1 inline-block w-2 h-2 bg-blue-500 rounded-full"/>
+                                                                )}
+                                                            </>
+                                                        );
+                                                    }}
+                                                    viewState={{}}
+                                                    onSelectItems={(items) => {
+                                                        if (items.length > 0) {
+                                                            const selectedFile = userGrammar?.grammar_files[items[0]];
+                                                            if (selectedFile) {
+                                                                setActiveFileIndex(String(items[0]));
                                                             }
-                                                        }}
-                                                    >
-                                                        <div className="text-gray-900 transition duration-200">
-                                                            <Tree treeId="tree-1" rootItem="root"
-                                                                  treeLabel="Tree Example"/>
-                                                        </div>
-                                                    </UncontrolledTreeEnvironment>
-                                                </div>
+                                                        }
+                                                    }}
+                                                >
+                                                    <div className="text-gray-900 transition duration-200">
+                                                        <Tree treeId="tree-1" rootItem="root"
+                                                              treeLabel="Tree Example"/>
+                                                    </div>
+                                                </UncontrolledTreeEnvironment>
                                             </div>
                                             {/* Grammar Editor */}
-                                            <div className="w-3/4">
+                                            <div className="w-3/4 h-full">
                                                 <Editor
-                                                    className="w-full"
-                                                    height="82vh"
+                                                    className="w-full h-full"
                                                     language={"antlr4"}
                                                     onMount={handleGrammarEditorDidMount}
                                                     value={editorContent}
@@ -577,7 +573,7 @@ function App() {
                                         <h2 className="text-2xl text-white">Expression</h2>
                                     </div>
                                     {/* Expression Editor */}
-                                    <Editor height="82vh"
+                                    <Editor className="w-full h-full"
                                             defaultLanguage="xml"
                                             options={{
                                                 wordWrap: "on",
