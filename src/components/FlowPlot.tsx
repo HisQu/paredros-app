@@ -379,6 +379,7 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
                 nodesDraggable={true}
                 nodesConnectable={false}
                 elementsSelectable={true}
+                className="h-full w-full"
             >
                 <Panel position="top-right" className="grid grid-cols-2 gap-4">
                     <Button onClick={() => onLayout("TB")} className="mr-2">

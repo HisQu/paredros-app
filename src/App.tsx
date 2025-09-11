@@ -480,37 +480,43 @@ function App() {
                     <Allotment vertical={true}>
                         {/* Augmented Parse Tree (React Flow) */}
                         <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
-                            {/* Header */}
-                            <header className="p-4 border-b border-zinc-200 grid grid-cols-1 gap-2">
-                                <div className="flex gap-2 w-full h-10 items-center">
-                                    <h1 className="text-2xl font-bold text-middle">πάρεδρος</h1>
-                                    <span
-                                        className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2">
+                            <div className="flex flex-col h-full min-h-0">
+                                {/* Header */}
+                                <header className="shrink-0 p-4 border-b border-zinc-200 grid grid-cols-1 gap-2">
+                                    <div className="flex gap-2 w-full h-10 items-center">
+                                        <h1 className="text-2xl font-bold text-middle">πάρεδρος</h1>
+                                        <span
+                                            className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2">
                         Grammar debugging environment
                     </span>
-                                    <Button color={"indigo"} onClick={testGrammarDecoration}>Test Grammar
-                                        Decoration</Button>
-                                    <Button color={"amber"} onClick={testExpressionDecoration}>Test Expression
-                                        Decoration</Button>
+                                        <Button color={"indigo"} onClick={testGrammarDecoration}>Test Grammar
+                                            Decoration</Button>
+                                        <Button color={"amber"} onClick={testExpressionDecoration}>Test Expression
+                                            Decoration</Button>
+                                    </div>
+                                </header>
+                                <div
+                                    className="shrink-0 flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
+                                    {info?.input_context_snippet ? info.input_context_snippet : ""}
                                 </div>
-                            </header>
-                            <div
-                                className="flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
-                                {info?.input_context_snippet ? info.input_context_snippet : ""}
+                                <div className="shrink-0">
+                                    {info?.grammar_rule_location ? info.grammar_rule_location.file_path : ""}
+                                </div>
+                                <div className="flex-1 min-h-0">
+                                    {(nodes && edges) /* The input has been parsed, and there is a parser */
+                                        ? (hasChangedGrammarFile(userGrammar)
+                                            ? (<ParserInputOverlay
+                                                onClick={generate_parser_save_grammar_files_parse_input}/>)
+                                            :
+                                            <Flow ref={flowRef} node={nodes} edge={edges} step_backwards={stepBackwards}
+                                                  step_forwards={stepForwards} current_step={info?.step_id}
+                                                  step_action={go_to_step}/>)
+                                        : ((generateParserResult)
+                                                ? (<ParseExpressionOverlay onClick={parse_input}/>)
+                                                : (<GenerateParserOverlay onClick={generate_parser}/>)
+                                        )}
+                                </div>
                             </div>
-                            <div>
-                                {info?.grammar_rule_location ? info.grammar_rule_location.file_path : ""}
-                            </div>
-                            {(nodes && edges) /* The input has been parsed, and there is a parser */
-                                ? (hasChangedGrammarFile(userGrammar)
-                                    ? (<ParserInputOverlay onClick={generate_parser_save_grammar_files_parse_input}/>)
-                                    : <Flow ref={flowRef} node={nodes} edge={edges} step_backwards={stepBackwards}
-                                            step_forwards={stepForwards} current_step={info?.step_id}
-                                            step_action={go_to_step}/>)
-                                : ((generateParserResult)
-                                        ? (<ParseExpressionOverlay onClick={parse_input}/>)
-                                        : (<GenerateParserOverlay onClick={generate_parser}/>)
-                                )}
                         </Allotment.Pane>
 
                         {/* Editor */}
@@ -525,13 +531,13 @@ function App() {
                                             <div className="w-1/4 bg-blue-200 p-2 h-full overflow-auto">
                                                 {/* Follow Parser toggle */}
                                                 <Button
-                                                // solid blue when active, outline when inactive
-                                                {...(followParser ? { color: 'blue' } : { outline: true })}
-                                                onClick={() => setFollowParser(v => !v)}
-                                                aria-pressed={followParser}
-                                                title={followParser ? 'Stop following parser location' : 'Follow parser location'}
+                                                    // solid blue when active, outline when inactive
+                                                    {...(followParser ? {color: 'blue'} : {outline: true})}
+                                                    onClick={() => setFollowParser(v => !v)}
+                                                    aria-pressed={followParser}
+                                                    title={followParser ? 'Stop following parser location' : 'Follow parser location'}
                                                 >
-                                                {followParser ? 'Following Parser' : 'Follow Parser'}
+                                                    {followParser ? 'Following Parser' : 'Follow Parser'}
                                                 </Button>
                                                 <UncontrolledTreeEnvironment
                                                     dataProvider={providerRef.current}
