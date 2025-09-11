@@ -147,6 +147,8 @@ function App() {
     const [nodes, setNodes] = useState<ParseTreeNode[]>();
     const [edges, setEdges] = useState<Edge[]>();
     const [info, setInfo] = useState<ParseStepInfo>();
+    // user interface state
+    const [followParser, setFollowParser] = useState<boolean>(false); // default: user controls file switching
 
     // expression editor content
     const [expressionContent, setExpressionContent] = useState(sampleInputText);
@@ -304,6 +306,7 @@ function App() {
     async function stepForwards() {
         // DEBUG
         console.log("Step Forwards")
+
         await invoke("step_forwards", {id: parseInfo, step: 1})
         await get_json_parse_tree();
     }
@@ -322,6 +325,7 @@ function App() {
         console.log("JSON Parse Tree");
         console.log(_response);
 
+        setFollowParser(true);
         const {nodes: _n, edges: _e} = transformJsonToParseTree(_response);
         setNodes(_n);
         setEdges(_e);
@@ -372,17 +376,20 @@ function App() {
         const loc = info?.grammar_rule_location;
         if (!loc) return;
 
-        // If we're not on the correct file, switch first.
-        if (activeFileIndex !== loc.file_path) {
+        // Only auto-switch when followParser is enabled
+        if (followParser && activeFileIndex !== loc.file_path) {
             setActiveFileIndex(loc.file_path);
-            // Early return: wait for editor model/content to update,
-            // then a separate effect (below) will place the decoration.
-            return;
+            return; // let the next run place the decorations after model changes
         }
 
-        // If already on correct file, decorate immediately
-        updateGrammarRuleDecoration(loc);
-    }, [info, activeFileIndex]);
+        // If the currently open file matches the parser location, decorate it
+        if (activeFileIndex === loc.file_path) {
+            updateGrammarRuleDecoration(loc);
+        } else {
+            // Different file is open and follow is OFF: clear any stale decorations
+            grammarDecorationCollectionRef.current?.clear?.();
+        }
+    }, [info, activeFileIndex, followParser]);
 
     function updateGrammarRuleDecoration(loc: GrammarRuleLocation) {
         const monaco = grammarMonacoRef.current;
@@ -516,6 +523,16 @@ function App() {
                                         <div className="flex space-x-4 h-full">
                                             {/* File Tree */}
                                             <div className="w-1/4 bg-blue-200 p-2 h-full overflow-auto">
+                                                {/* Follow Parser toggle */}
+                                                <Button
+                                                // solid blue when active, outline when inactive
+                                                {...(followParser ? { color: 'blue' } : { outline: true })}
+                                                onClick={() => setFollowParser(v => !v)}
+                                                aria-pressed={followParser}
+                                                title={followParser ? 'Stop following parser location' : 'Follow parser location'}
+                                                >
+                                                {followParser ? 'Following Parser' : 'Follow Parser'}
+                                                </Button>
                                                 <UncontrolledTreeEnvironment
                                                     dataProvider={providerRef.current}
                                                     // @ts-ignore
@@ -536,6 +553,7 @@ function App() {
                                                         if (items.length > 0) {
                                                             const selectedFile = userGrammar?.grammar_files[items[0]];
                                                             if (selectedFile) {
+                                                                setFollowParser(false);
                                                                 setActiveFileIndex(String(items[0]));
                                                             }
                                                         }
