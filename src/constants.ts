@@ -35,13 +35,22 @@ const antlr4MonarchLanguage = {
       // Whitespace and comments
       { include: '@whitespace' },
 
-      // Keywords
-      [/\b(grammar|options|tokens|import|fragment|lexer|parser|channels|mode)\b/, 'keyword'],
+      // --- Context-sensitive handling for grammar/import names ---
+      [/\bgrammar\b/, { token: 'keyword', next: '@grammarName' }],
+      [/\bimport\b/,  { token: 'keyword', next: '@importList' }],
 
-      // Lexer rules: usually written in all-caps or starting with an uppercase letter
-      [/[A-Z][A-Z0-9_]*/, 'type.identifier'],
+      // Other keywords
+      [/\b(options|tokens|fragment|lexer|parser|channels|mode)\b/, 'keyword'],
 
-      // Parser rules: typically begin with a lowercase letter
+      // --- Identifier classes ---
+      // 1) PascalCase (captures names like 'Lexer', 'Regest', etc.)
+      //    Put BEFORE ALL-CAPS so it wins when lowercase letters follow.
+      [/[A-Z][a-z][a-zA-Z0-9_]*/, 'type.identifier.pascal'],
+
+      // 2) ALL-CAPS lexer rules
+      [/[A-Z][A-Z0-9_]*/, 'type.identifier.lexer'],
+
+      // 3) Parser rules: typically begin with a lowercase letter
       [/[a-z][a-zA-Z0-9_]*/, 'identifier'],
 
       // Brackets and delimiters
@@ -67,6 +76,23 @@ const antlr4MonarchLanguage = {
 
       // Code blocks (action code) that begin with '{' and can nest
       [/\{/, { token: 'delimiter.bracket', next: '@action' }],
+    ],
+
+    // After 'grammar', color the next PascalCase identifier specially
+    grammarName: [
+      { include: '@whitespace' },
+      // grammar <Name> ;
+      [/[A-Z][a-zA-Z0-9_]*/, 'type.identifier.grammar', '@pop'],
+      // Fallback so we don't get stuck
+      [/./, '', '@pop']
+    ],
+
+    // After 'import', there may be a comma-separated list of PascalCase names
+    importList: [
+      { include: '@whitespace' },
+      [/[A-Z][a-zA-Z0-9_]*/, 'type.identifier.grammar'],
+      [/,/, 'delimiter'],
+      [/;/, 'delimiter', '@pop'],
     ],
 
     // Whitespace and comment handling
