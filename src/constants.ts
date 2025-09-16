@@ -3,12 +3,14 @@ import {
   Edge
 } from '@xyflow/react';
 
+import type { languages } from "monaco-editor";
+
 const sampleInputText = `<head>Henricus de Bocholdia al. d. Foet cler. Traiect., mag. in art. bac. in decr.</head>
 
 <sublemma>m. prov. super par. eccl. in Bodegrauen Traiect. dioc. vacat. per transgr. Ghiselberti de Lochorst ad decan. eccl. s. Saluatoris Traiect. 9 apr. 1410. L 138 254v.</sublemma>
 `;
 
-const antlr4MonarchLanguage = {
+const antlr4MonarchLanguage: languages.IMonarchLanguage = {
   // Default token and file extension postfix
   defaultToken: '',
   tokenPostfix: '.g4',
@@ -117,9 +119,9 @@ const antlr4MonarchLanguage = {
 
     // Action state to handle nested code blocks in { ... }
     action: [
-      [/\{/, 'delimiter.bracket', '@push'],
-      [/\}/, 'delimiter.bracket', '@pop'],
-      { include: 'root' }
+      [/\{/, { token: 'delimiter.bracket', next: '@push' }],
+      [/\}/, { token: 'delimiter.bracket', next: '@pop' }],
+      { include: '@root' }
     ]
   }
 };

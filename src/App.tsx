@@ -81,7 +81,7 @@ function App() {
     // decorations in the expression monaco editor
     const expressionEditorRef = useRef<Parameters<OnMount>[0] | null>(null);
     const expressionMonacoRef = useRef<Parameters<OnMount>[1] | null>(null);
-    const expressionDecorationCollectionRef = useRef<editor.IEditorDecorationsCollection>();
+    // const expressionDecorationCollectionRef = useRef<editor.IEditorDecorationsCollection>();
 
     const handleExpressionEditorDidMount: OnMount = (editor, monaco) => {
         expressionEditorRef.current = editor;
@@ -522,8 +522,8 @@ function App() {
                                                     onChange={handleEditorChange}
                                                     beforeMount={(monaco) => {
                                                         // Register the custom ANTLR4 language with Monaco
-                                                        monaco.languages.register({id: 'antlr4'});
-                                                        monaco.languages.setMonarchTokensProvider('antlr4', antlr4MonarchLanguage);
+                                                          monaco.languages.register({ id: 'antlr4' });
+                                                            monaco.languages.setMonarchTokensProvider('antlr4', buildAntlrLanguage(monaco));
                                                     }}
                                                     options={{
                                                         wordWrap: "on",
