@@ -343,34 +343,6 @@ function App() {
         setInfo(_response);
     }
 
-    function testGrammarDecoration() {
-        const monaco = grammarMonacoRef.current;
-        const editor = grammarEditorRef.current;
-
-        if (monaco && editor) {
-            if (!grammarDecorationCollectionRef.current) {
-                // First time: create the collection
-                grammarDecorationCollectionRef.current = editor.createDecorationsCollection([
-                    {
-                        range: new monaco.Range(3, 1, 3, 1),
-                        options: {beforeContentClassName: "inline-hint"},
-                    },
-                ]);
-            } else {
-                // Already exists: append to it
-                grammarDecorationCollectionRef.current.append([
-                    {
-                        range: new monaco.Range(3, 1, 3, 1),
-                        options: {beforeContentClassName: "inline-hint"},
-                    },
-                ]);
-            }
-
-            // Clear grammar decorations if they exist
-            expressionDecorationCollectionRef.current?.clear();
-        }
-    }
-
     // Listen on changes to parse step info, and update decorations accordingly
     useEffect(() => {
         const loc = info?.grammar_rule_location;
@@ -435,34 +407,6 @@ function App() {
         ed.revealRangeInCenter(range);
     }
 
-    function testExpressionDecoration() {
-        const monaco = expressionMonacoRef.current;
-        const editor = expressionEditorRef.current;
-
-        if (monaco && editor) {
-            if (!expressionDecorationCollectionRef.current) {
-                // First time: create the collection
-                expressionDecorationCollectionRef.current = editor.createDecorationsCollection([
-                    {
-                        range: new monaco.Range(3, 1, 3, 1),
-                        options: {beforeContentClassName: "inline-hint"},
-                    },
-                ]);
-            } else {
-                // Already exists: append to it
-                expressionDecorationCollectionRef.current.append([
-                    {
-                        range: new monaco.Range(3, 1, 3, 1),
-                        options: {beforeContentClassName: "inline-hint"},
-                    },
-                ]);
-            }
-
-            // Clear grammar decorations if they exist
-            grammarDecorationCollectionRef.current?.clear();
-        }
-    }
-
     function hasChangedGrammarFile(userGrammar: UserGrammar): boolean {
         return Object.values(userGrammar.grammar_files).some(file => file.changed);
     }
@@ -489,10 +433,6 @@ function App() {
                                             className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2">
                         Grammar debugging environment
                     </span>
-                                        <Button color={"indigo"} onClick={testGrammarDecoration}>Test Grammar
-                                            Decoration</Button>
-                                        <Button color={"amber"} onClick={testExpressionDecoration}>Test Expression
-                                            Decoration</Button>
                                     </div>
                                 </header>
                                 <div
