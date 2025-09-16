@@ -97,8 +97,8 @@ pub fn ensure_python_sync(app: &AppHandle) -> Result<()> {
                 handle
                     .dialog()
                     .message(
-                        format!("No Python interpreter was found on your system.\n\
-                         Please install Python {desired_python_version} or later and restart the application."),
+                        format!("Something went wrong during the setup process.\n\
+                         Please try installing Python {desired_python_version} and re-install the application."),
                     )
                     .title("Python not detected")
                     .kind(MessageDialogKind::Error)
