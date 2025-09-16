@@ -522,8 +522,8 @@ function App() {
                                                     onChange={handleEditorChange}
                                                     beforeMount={(monaco) => {
                                                         // Register the custom ANTLR4 language with Monaco
-                                                          monaco.languages.register({ id: 'antlr4' });
-                                                            monaco.languages.setMonarchTokensProvider('antlr4', buildAntlrLanguage(monaco));
+                                                        monaco.languages.register({id: 'antlr4'});
+                                                        monaco.languages.setMonarchTokensProvider('antlr4', antlr4MonarchLanguage);
                                                     }}
                                                     options={{
                                                         wordWrap: "on",
