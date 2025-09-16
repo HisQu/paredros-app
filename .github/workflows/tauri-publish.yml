@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - fix/31-automatic-venv-creation
 
 env:
   PYTHON_VERSION_FILE: .python-version
