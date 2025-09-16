@@ -407,10 +407,20 @@ fn ensure_git_on_path(app: &AppHandle) -> anyhow::Result<bool> {
 fn antlr4_path(venv_dir: &Path) -> Option<PathBuf> {
     #[cfg(windows)]
     {
-        // pip may create either .bat or .cmd – look for both
-        for ext in ["bat", "cmd"] {
-            let p = venv_dir.join("Scripts").join(format!("antlr4.{ext}"));
-            if p.exists() { return Some(p) }
+        // pip may create either .bat or .cmd – look for both, and handle uppercase extensions
+        let scripts_dir = venv_dir.join("Scripts");
+        let possible_names = [
+            "antlr4.bat",
+            "antlr4.cmd",
+            "antlr4.BAT",
+            "antlr4.CMD",
+            "antlr4",
+        ];
+        for name in &possible_names {
+            let p = scripts_dir.join(name);
+            if p.exists() {
+                return Some(p);
+            }
         }
     }
     #[cfg(not(windows))]
