@@ -75,6 +75,50 @@ pub fn ensure_python_async(app: AppHandle) {
     });
 }
 
+fn add_embedded_python_paths(app: &tauri::AppHandle) {
+    // Resolve your embedded Python root (from bundled resources)
+    let py_root = app
+        .path()
+        .resolve("py/windows", tauri::path::BaseDirectory::Resource)
+        .ok();
+
+    if let Some(py_root) = py_root {
+        let dlls = py_root.join("DLLs");
+        let libs = py_root.join("libs");
+        let zip  = py_root.join("python312.zip");
+
+        // --- PATH for the OS loader (python312.dll, OpenSSL, etc.)
+        // Prepend so our copies win.
+        let mut path_entries = vec![py_root.clone(), dlls.clone()];
+        if libs.exists() { path_entries.push(libs.clone()); }
+
+        let current_path = std::env::var_os("PATH").unwrap_or_default();
+        let mut merged: Vec<std::path::PathBuf> =
+            std::env::split_paths(&current_path).collect();
+        for p in path_entries.into_iter().rev() {
+            merged.insert(0, p);
+        }
+        let new_path = std::env::join_paths(merged).expect("join PATH");
+        std::env::set_var("PATH", &new_path);
+
+        // --- PYTHONPATH for the import system (stdlib zip + DLLs + venv paths)
+        let sep = if cfg!(windows) { ";" } else { ":" };
+        let mut py_path_parts: Vec<String> = vec![];
+
+        if zip.exists()  { py_path_parts.push(zip.display().to_string()); }
+        if dlls.exists() { py_path_parts.push(dlls.display().to_string()); }
+
+        // Keep anything already configured (your venv Lib + site-packages)
+        if let Ok(existing) = std::env::var("PYTHONPATH") {
+            if !existing.is_empty() {
+                py_path_parts.push(existing);
+            }
+        }
+
+        std::env::set_var("PYTHONPATH", py_path_parts.join(sep));
+    }
+}
+
 /// Synchronous bootstrap. Safe to call multiple times.
 pub fn ensure_python_sync(app: &AppHandle) -> Result<()> {
     let _ = app.emit("py/setup-progress", PySetupProgress::Checking);
@@ -82,6 +126,7 @@ pub fn ensure_python_sync(app: &AppHandle) -> Result<()> {
     match bootstrap_python_env(app) {
         Ok(venv_dir) => {
             configure_env_for_venv(&venv_dir)?;
+            add_embedded_python_paths(app);
             pyo3::prepare_freethreaded_python();
             let _ = app.emit("py/setup-progress", PySetupProgress::Done);
             Ok(())
@@ -414,6 +459,8 @@ fn antlr4_path(venv_dir: &Path) -> Option<PathBuf> {
             "antlr4.cmd",
             "antlr4.BAT",
             "antlr4.CMD",
+            "antlr4.exe",
+            "antlr4.EXE",
             "antlr4",
         ];
         for name in &possible_names {

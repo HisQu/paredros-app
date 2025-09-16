@@ -35,3 +35,7 @@ dist-ssr
 
 # generated parsers
 examples/**/**/*.py
+
+# dlls
+# for pyo3 bindings py/windows/python312.dll
+src-tauri/py/ 
