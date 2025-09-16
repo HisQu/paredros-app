@@ -379,6 +379,7 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
                 nodesDraggable={true}
                 nodesConnectable={false}
                 elementsSelectable={true}
+                className="h-full w-full"
             >
                 <Panel position="top-right" className="grid grid-cols-2 gap-4">
                     <Button onClick={() => onLayout("TB")} className="mr-2">
@@ -387,7 +388,7 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
                     <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
                     <Button color="green" onClick={step_backwards}>Step Back</Button>
                     <Button color="green" onClick={step_forwards}>Step Forward</Button>
-                    <Badge color={"pink"}><b>Current Step is: {current_step}</b></Badge>
+                    <Badge color={"pink"}><b>[Debug] Current Step is: {current_step}</b></Badge>
                     <Input type={"number"} min={0} max={500} step={1} value={parseInt(current_step || "0")}
                            onChange={onChangeListener}/>
                     <Button color="fuchsia" onClick={toggle_expand}>Toggle Expand</Button>

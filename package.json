@@ -26,6 +26,7 @@
     "clsx": "^2.1.1",
     "d3": "^7.9.0",
     "framer-motion": "^11.2.6",
+    "monaco-editor": "^0.53.0",
     "react": "^19.0.0",
     "react-complex-tree": "^2.4.6",
     "react-dom": "^19.0.0",

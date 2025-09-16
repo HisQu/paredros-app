@@ -117,9 +117,21 @@
     fill: #f7f9fb;
   }
 
-.my-inline-label::before {
+.inline-hint::before {
     content: "🛈 Hint: ";
     color: gray;
     font-style: italic;
     margin-right: 6px;
+}
+
+/* Highlight the current grammar rule */
+.rule-inline-hint::before {
+    content: "🔍";
+    font-weight: bold;
+    margin-right: 6px;
+}
+.rule-highlight {
+    background: rgba(99, 102, 241, 0.25); /* violet-500-ish */
+    outline: 2px solid rgba(99, 102, 241, 0.6);
+    border-radius: 4px;
 }
