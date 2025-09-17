@@ -445,10 +445,12 @@ function App() {
                                         ? (hasChangedGrammarFile(userGrammar)
                                             ? (<ParserInputOverlay
                                                 onClick={generate_parser_save_grammar_files_parse_input}/>)
-                                            :
-                                            <Flow ref={flowRef} node={nodes} edge={edges} step_backwards={stepBackwards}
-                                                  step_forwards={stepForwards} current_step={info?.step_id}
-                                                  step_action={go_to_step}/>)
+                                            : <Flow ref={flowRef}
+                                                    node={nodes} edge={edges}
+                                                    step_backwards={stepBackwards}
+                                                    step_forwards={stepForwards}
+                                                    current_step={info?.step_id}
+                                                    step_action={go_to_step}/>)
                                         : ((generateParserResult)
                                                 ? (<ParseExpressionOverlay onClick={parse_input}/>)
                                                 : (<GenerateParserOverlay onClick={generate_parser}/>)
