@@ -1,5 +1,35 @@
 # Paredros App
 
+## Installation
+
+### Windows
+
+#### Install Python
+Download [Python 3.12.10 64bit](https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe)
+or [Python 3.12.10 ARM64](https://www.python.org/ftp/python/3.12.10/python-3.12.10-arm64.exe) respectively
+and install it.
+
+> [!NOTE]
+> Make sure to check the box "Add Python 3.12 to PATH" during installation.
+> If you forget this, you can add it manually later.
+
+> [!IMPORTANT]
+> Using the Microsoft Store variant of Python is not supported. It is missing several features
+> of a full Python installation, which are required by Paredros App.
+> You may need to disable the Microsoft alias for Python, if it is installed or was at some point installed.
+> ```
+> Remove-Item $env:LOCALAPPDATA\Microsoft\WindowsApps\python.exe
+> Remove-Item $env:LOCALAPPDATA\Microsoft\WindowsApps\python3.exe
+> ``` 
+> Or in the Windows Settings (Win+I): Apps -> Apps & Features -> App execution aliases -> Disable Python and Python3
+
+
+#### Install Paredros
+Download the latest Paredros release from https://github.com/HisQu/paredros-app/releases.
+
+### Linux
+There is currently no guide for installation on Linux.
+
 ## Setup for Deployment
 Currently the newest version can be obtained via the [Github build action](https://github.com/HisQu/paredros-app/actions), triggered by any new commits or manually.
 Download the artifact for your system and run it.
