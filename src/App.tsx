@@ -440,9 +440,6 @@ function App() {
                                     className="shrink-0 flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
                                     {info?.input_context_snippet ? info.input_context_snippet : ""}
                                 </div>
-                                <div className="shrink-0">
-                                    {info?.grammar_rule_location ? info.grammar_rule_location.file_path : ""}
-                                </div>
                                 <div className="flex-1 min-h-0">
                                     {(nodes && edges) /* The input has been parsed, and there is a parser */
                                         ? (hasChangedGrammarFile(userGrammar)
