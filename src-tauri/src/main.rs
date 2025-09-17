@@ -106,18 +106,6 @@ fn go_to_step(
 
 /// This class mirrors the Python class
 #[derive(Debug, FromPyObject, Serialize)]
-struct ParseTreeNode {
-    #[pyo3(attribute("id"))]
-    id: String,
-    #[pyo3(attribute("nodeType"))]
-    node_type: String,
-    #[pyo3(attribute("children"))]
-    children: Vec<ParseTreeNode>, 
-}
-
-
-/// This class mirrors the Python class
-#[derive(Debug, FromPyObject, Serialize)]
 struct GrammarRule {
     #[pyo3(attribute)]
     name: String,

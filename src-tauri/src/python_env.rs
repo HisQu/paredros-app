@@ -9,8 +9,6 @@ use std::{
     io::Write
 };
 
-use pyo3::{Python, PyResult};
-use pyo3::prelude::*;
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
