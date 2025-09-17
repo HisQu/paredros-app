@@ -4,6 +4,8 @@
 
 ### Windows
 
+Two steps are necessary to run Paredros on Windows: installing and configuring Python and then Paredros.
+
 #### Install Python
 Download [Python 3.12.10 64bit](https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe)
 or [Python 3.12.10 ARM64](https://www.python.org/ftp/python/3.12.10/python-3.12.10-arm64.exe) respectively
@@ -30,9 +32,6 @@ Download the latest Paredros release from https://github.com/HisQu/paredros-app/
 ### Linux
 There is currently no guide for installation on Linux.
 
-## Setup for Deployment
-Currently the newest version can be obtained via the [Github build action](https://github.com/HisQu/paredros-app/actions), triggered by any new commits or manually.
-Download the artifact for your system and run it.
 
 ## Setting up for development and building
 
