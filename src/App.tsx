@@ -429,7 +429,7 @@ function App() {
                                 {/* Header */}
                                 <header className="shrink-0 p-4 border-b border-zinc-200 grid grid-cols-1 gap-2">
                                     <div className="flex gap-2 w-full h-10 items-center">
-                                        <h1 className="text-2xl font-bold text-middle">πάρεδρος</h1>
+                                        <h1 className="text-2xl font-bold font-serif text-middle">πάρεδρος</h1>
                                         <span
                                             className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2">
                         Grammar debugging environment

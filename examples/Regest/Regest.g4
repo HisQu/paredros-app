@@ -58,7 +58,7 @@ pfruendenType : ADMIN | DECAN | CAPELL ;
 pfruendenInst : (pfruendenType patroName?)* ((ET | AC) pfruendenType)* instType patroName? orden? location? ;
 patroName : (B | BB | SS | S ) ( APL | PTRNAME);
 instType : instTypeHaupt instTypeSub? ;
-instTypeHaupt : CATHEDRAL | MON | CAPELL | ECCL | HOSP | HOSP PAUPER | DOM;
+instTypeHaupt : CATHEDRAL | MON | CAPELL | ECCL | HOSP | HOSP PAUPER | DOM ;
 instTypeSub : CAPELL | ECCL | ALT;
 
 location : (stadt+ (bistum | bistuemer)?) | (bistum | bistuemer) ;
