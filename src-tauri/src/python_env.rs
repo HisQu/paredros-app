@@ -9,6 +9,8 @@ use std::{
     io::Write
 };
 
+use pyo3::{Python, PyResult};
+use pyo3::prelude::*;
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -128,6 +130,25 @@ pub fn ensure_python_sync(app: &AppHandle) -> Result<()> {
             configure_env_for_venv(&venv_dir)?;
             add_embedded_python_paths(app);
             pyo3::prepare_freethreaded_python();
+
+            // ================== START: ADD THIS FIX ==================
+            // On Windows, PYTHONPATH isn't always enough for pyo3 to find the venv packages.
+            // Manually appending the site-packages directory to sys.path after initialization
+            // is a more reliable way to ensure modules are found.
+            #[cfg(windows)]
+            Python::with_gil(|py| -> PyResult<()> {
+                // Use .import() instead of .import_bound()
+                let sys = py.import("sys")?;
+                let path = sys.getattr("path")?;
+                let site_packages = venv_dir.join("Lib").join("site-packages");
+
+                if site_packages.exists() {
+                     path.call_method1("append", (site_packages.to_str(),))?;
+                }
+                Ok(())
+            })?;
+            // =================== END: ADD THIS FIX ===================
+
             let _ = app.emit("py/setup-progress", PySetupProgress::Done);
             Ok(())
         }
