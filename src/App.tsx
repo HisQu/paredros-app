@@ -427,19 +427,39 @@ function App() {
                         <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
                             <div className="flex flex-col h-full min-h-0">
                                 {/* Header */}
-                                <header className="shrink-0 p-4 border-b border-zinc-200 grid grid-cols-1 gap-2">
-                                    <div className="flex gap-2 w-full h-10 items-center">
-                                        <h1 className="text-2xl font-bold font-serif text-middle">πάρεδρος</h1>
-                                        <span
-                                            className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2">
-                        Grammar debugging environment
-                    </span>
+                                <header className="shrink-0 pr-0 border-b border-zinc-200 h-24">
+                                    <div className="flex items-center gap-4 h-full">
+
+                                        {/* Left content (logos + subtitle) */}
+                                        <div className="flex items-center gap-4 pl-4">
+                                            <div className="flex items-center">
+                                                <img
+                                                    className="h-7"
+                                                    src="/paredros.png"
+                                                    alt="Paredros Icon"
+                                                    style={{marginRight: '1px'}}
+                                                />
+                                                <img
+                                                    className="h-7"
+                                                    src="/without_pi.png"
+                                                    alt="πάρεδρος"
+                                                />
+                                            </div>
+
+                                            <span className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2 whitespace-nowrap">
+        Grammar debugging environment
+      </span>
+                                        </div>
+
+                                        {/* Snippet box — edge-to-edge */}
+                                        <div className="flex-1 flex items-center justify-center font-mono bg-violet-500 text-3xl text-gray-100 h-full">
+                                            {info?.input_context_snippet ? info.input_context_snippet : ""}
+                                        </div>
+
                                     </div>
                                 </header>
-                                <div
-                                    className="shrink-0 flex justify-center gap-2 font-mono bg-violet-500 text-3xl text-gray-100 p-8 h-24">
-                                    {info?.input_context_snippet ? info.input_context_snippet : ""}
-                                </div>
+
+
                                 <div className="flex-1 min-h-0">
                                     {(nodes && edges) /* The input has been parsed, and there is a parser */
                                         ? (hasChangedGrammarFile(userGrammar)

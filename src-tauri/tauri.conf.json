@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "paredros-app",
+  "productName": "πάρεδρος",
   "version": "0.1.1",
   "identifier": "de.hisqu.paredros",
   "build": {
@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "paredros-app",
+        "title": "πάρεδρος",
         "width": 1280,
-        "height": 720
+        "height": 920
       }
     ],
     "security": {
