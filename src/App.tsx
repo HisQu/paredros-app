@@ -434,25 +434,22 @@ function App() {
                                         <div className="flex items-center gap-4 pl-4">
                                             <div className="flex items-center">
                                                 <img
-                                                    className="h-7"
-                                                    src="/paredros.png"
+                                                    className="h-22"
+                                                    src="/paredros_wordmark.png"
                                                     alt="Paredros Icon"
                                                     style={{marginRight: '1px'}}
                                                 />
-                                                <img
-                                                    className="h-7"
-                                                    src="/without_pi.png"
-                                                    alt="πάρεδρος"
-                                                />
                                             </div>
 
-                                            <span className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2 whitespace-nowrap">
-        Grammar debugging environment
-      </span>
+                                            <span
+                                                className="text-sm underline decoration-dotted decoration-blue-700 decoration-2 underline-offset-2 whitespace-nowrap">
+                                                Grammar debugging environment
+                                            </span>
                                         </div>
 
                                         {/* Snippet box — edge-to-edge */}
-                                        <div className="flex-1 flex items-center justify-center font-mono bg-violet-500 text-3xl text-gray-100 h-full">
+                                        <div
+                                            className="flex-1 flex items-center justify-center font-mono bg-violet-500 text-2xl text-gray-100 h-full">
                                             {info?.input_context_snippet ? info.input_context_snippet : ""}
                                         </div>
 
