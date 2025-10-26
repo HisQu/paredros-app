@@ -55,3 +55,14 @@ export interface ParseStepInfo {
   grammar_rule_location: GrammarRuleLocation;
   input_context_snippet: string | null;
 }
+
+export interface TokenInfo {
+    text: string;
+    typeName: string;
+    typeId: number;
+    line: number;
+    column: number;
+    startIndex: number;
+    stopIndex: number;
+    tokenIndex: number;
+}
