@@ -432,6 +432,84 @@ function App() {
         ed.revealRangeInCenter(range);
     }
 
+    const tokenDecorationCollectionRef = useRef<editor.IEditorDecorationsCollection>();
+
+    function tokenToRange(monaco: any, model: any, t: TokenInfo) {
+        const startPos = model.getPositionAt(t.startIndex);
+        const endPos = model.getPositionAt(t.stopIndex+1);
+        return new monaco.Range(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column);
+    }
+
+    function applyTokenDecorations(tokens: TokenInfo[]) {
+        const monaco = expressionMonacoRef.current;
+        const ed = expressionEditorRef.current;
+        if (!monaco || !ed) return;
+
+        const model = ed.getModel?.();
+        if (!model) return;
+
+        // Clear previous
+        tokenDecorationCollectionRef.current?.clear?.();
+
+        const Stickiness = monaco.editor.TrackedRangeStickiness;      // runtime enum
+        const RulerLane = monaco.editor.OverviewRulerLane;            // runtime enum
+
+        const maxLabel = 80;
+        const safe = (s: string) => (s ?? '').replace(/\s+/g, ' ').slice(0, maxLabel);
+
+        const decorations: any[] = tokens.map((t, i) => {
+            const range = tokenToRange(monaco, model, t);
+            const label = safe(t.text);
+
+            return {
+                range,
+                options: {
+                    className: `token-highlight token-type-${i%2}`,
+                    stickiness: Stickiness.NeverGrowsWhenTypingAtEdges,
+                    inlineClassNameAffectsLetterSpacing: true,
+
+                    after: {
+                        contentText: ` ${label}`,
+                        inlineClassName: `token-inline-annotation`,
+                    },
+
+                    hoverMessage: {
+                        value:
+                            `**${t.typeName || 'Token'}**\n\n` +
+                            `text: \`${t.text}\`\n\n` +
+                            `line: ${t.line}, column: ${t.column}\n` +
+                            `index: [${t.startIndex}..${t.stopIndex+1}] (#${t.tokenIndex})`
+                    },
+
+                    overviewRuler: {
+                        color: 'rgba(180,180,255,0.6)',
+                        position: RulerLane.Center,
+                    },
+                    minimap: { color: 'rgba(180,180,255,0.6)', position: 1 },
+                }
+            };
+        });
+
+        tokenDecorationCollectionRef.current = ed.createDecorationsCollection(decorations);
+    }
+
+
+    useEffect(() => {
+        // when tokens change:
+        if (!lexemes?.length) {
+            tokenDecorationCollectionRef.current?.clear?.();
+            return;
+        }
+        applyTokenDecorations(lexemes);
+    }, [lexemes]);
+
+    // cleanup when editor unmounts
+    useEffect(() => {
+        return () => {
+            tokenDecorationCollectionRef.current?.clear?.();
+        };
+    }, []);
+
     function hasChangedGrammarFile(userGrammar: UserGrammar): boolean {
         return Object.values(userGrammar.grammar_files).some(file => file.changed);
     }

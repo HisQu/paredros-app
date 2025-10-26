@@ -191,7 +191,7 @@ struct ParseStepInfo {
 
 #[derive(Debug, FromPyObject, Serialize)]
 #[pyo3(from_item_all)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 struct TokenInfo {
     text: String,
     type_name: String,
