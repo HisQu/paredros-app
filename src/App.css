@@ -147,7 +147,13 @@
 
 .token-inline-annotation {
     font-style: italic;
-    opacity: 0.9;
+    opacity: 0.9
 }
+
 .monaco-editor .token-type-0 { border-color: #8a2be2; }
 .monaco-editor .token-type-1 { border-color: #8a2be2; }
+
+.monaco-editor .token-type-active {
+    border: 2px solid #53ea05;
+    background-color: rgba(255, 208, 0, 0.35);
+}

@@ -67,7 +67,7 @@ function App() {
     // whether the expression editor content has changed since the last parse
     const [expressionChanged, setExpressionChanged] = useState<boolean>(false);
 
-    const handleExpressionChange = (value:string) => {
+    const handleExpressionChange = (value: any) => {
         setExpressionContent(value || "");
         setExpressionChanged(true);
     }
@@ -90,7 +90,8 @@ function App() {
     // decorations in the expression monaco editor
     const expressionEditorRef = useRef<Parameters<OnMount>[0] | null>(null);
     const expressionMonacoRef = useRef<Parameters<OnMount>[1] | null>(null);
-    // const expressionDecorationCollectionRef = useRef<editor.IEditorDecorationsCollection>();
+    const tokenDecorationCollectionRef = useRef<editor.IEditorDecorationsCollection>();
+    const currentTokenDecorationRef = useRef<editor.IEditorDecorationsCollection>();
 
     const handleExpressionEditorDidMount: OnMount = (editor, monaco) => {
         expressionEditorRef.current = editor;
@@ -432,8 +433,6 @@ function App() {
         ed.revealRangeInCenter(range);
     }
 
-    const tokenDecorationCollectionRef = useRef<editor.IEditorDecorationsCollection>();
-
     function tokenToRange(monaco: any, model: any, t: TokenInfo) {
         const startPos = model.getPositionAt(t.startIndex);
         const endPos = model.getPositionAt(t.stopIndex+1);
@@ -476,8 +475,7 @@ function App() {
                     hoverMessage: {
                         value:
                             `**${t.typeName || 'Token'}**\n\n` +
-                            `text: \`${t.text}\`\n\n` +
-                            `line: ${t.line}, column: ${t.column}\n` +
+                            `line: ${t.line}, column: ${t.column}; ` +
                             `index: [${t.startIndex}..${t.stopIndex+1}] (#${t.tokenIndex})`
                     },
 
@@ -493,6 +491,36 @@ function App() {
         tokenDecorationCollectionRef.current = ed.createDecorationsCollection(decorations);
     }
 
+    function highlightCurrentToken() {
+        const monaco = expressionMonacoRef.current;
+        const ed = expressionEditorRef.current;
+        if (!monaco || !ed || !lexemes || !info) {
+            currentTokenDecorationRef.current?.clear?.();
+            return;
+        }
+
+        const model = ed.getModel?.();
+        if (!model) return;
+
+        // find token by index
+        const tok = lexemes.find(t => t.tokenIndex === info.token_index) ?? lexemes[info.token_index];
+        if (!tok) {
+            currentTokenDecorationRef.current?.clear?.();
+            return;
+        }
+
+        const range = tokenToRange(monaco, model, tok);
+        currentTokenDecorationRef.current?.clear?.();
+        currentTokenDecorationRef.current = ed.createDecorationsCollection([
+            {
+                range,
+                options: {
+                    className: 'token-type-active',
+                    stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+                },
+            },
+        ]);
+    }
 
     useEffect(() => {
         // when tokens change:
@@ -503,10 +531,15 @@ function App() {
         applyTokenDecorations(lexemes);
     }, [lexemes]);
 
+    useEffect(() => {
+        highlightCurrentToken();
+    }, [info, lexemes]);
+
     // cleanup when editor unmounts
     useEffect(() => {
         return () => {
             tokenDecorationCollectionRef.current?.clear?.();
+            currentTokenDecorationRef.current?.clear?.();
         };
     }, []);
 
