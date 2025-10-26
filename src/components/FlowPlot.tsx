@@ -398,9 +398,11 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
                     <Button color="green" onClick={step_forwards}>Step Forward</Button>
                     <Button color="green" onClick={step_to_last_decision}>Step to Last Decision</Button>
                     <Button color="green" onClick={step_to_next_decision}>Step to Next Decision</Button>
-                    <Badge color={"pink"}></Badge>
+                    <Badge color={"blue"}>Current step:</Badge>
                     <Input type={"number"} min={0} max={500} step={1} value={parseInt(current_step || "0")}
-                                            onChange={onChangeListener}/>
+                           onChange={onChangeListener}
+                           className="text-black bg-blue-100 rounded-sm"
+                    />
                     <Button color="fuchsia" onClick={toggle_expand}>Toggle Expand</Button>
                     <CheckboxGroup>
                         <CheckboxField>
