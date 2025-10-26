@@ -9,7 +9,7 @@ import Flow, {FlowHandle} from "./components/FlowPlot.tsx";
 import UnhandledRejectionDialog from "./components/UnhandledRejectionDialog.tsx";
 import PythonSetupComponent from "./components/PythonSetupComponent.tsx";
 // Interfaces
-import {GrammarRuleLocation, ParseStepInfo, UserGrammar} from "./interfaces/UserGrammar.ts";
+import {GrammarRuleLocation, ParseStepInfo, TokenInfo, UserGrammar} from "./interfaces/UserGrammar.ts";
 import {ParseTreeNode} from "./interfaces/ParseTreeNode.ts";
 import type {PySetupProgressType} from "./interfaces/PySetupProgressType.ts"
 // Mockup/Helper values
@@ -34,7 +34,8 @@ import {
     LoadGrammarOverlay,
     BigLoadGrammarOverlay,
     ParserInputOverlay,
-    ParseExpressionOverlay
+    ParseExpressionOverlay,
+    ExpressionChangedOverlay
 } from "./components/ParseTreeOverlays.tsx";
 import {Button} from "./components/ui/button.tsx";
 
@@ -63,6 +64,14 @@ function App() {
         });
     };
 
+    // whether the expression editor content has changed since the last parse
+    const [expressionChanged, setExpressionChanged] = useState<boolean>(false);
+
+    const handleExpressionChange = (value: any) => {
+        setExpressionContent(value || "");
+        setExpressionChanged(true);
+    }
+
 
     // Refs / References declarations
     const providerRef = useRef<GrammarFilesDataProvider>();
@@ -81,7 +90,8 @@ function App() {
     // decorations in the expression monaco editor
     const expressionEditorRef = useRef<Parameters<OnMount>[0] | null>(null);
     const expressionMonacoRef = useRef<Parameters<OnMount>[1] | null>(null);
-    // const expressionDecorationCollectionRef = useRef<editor.IEditorDecorationsCollection>();
+    const tokenDecorationCollectionRef = useRef<editor.IEditorDecorationsCollection>();
+    const currentTokenDecorationRef = useRef<editor.IEditorDecorationsCollection>();
 
     const handleExpressionEditorDidMount: OnMount = (editor, monaco) => {
         expressionEditorRef.current = editor;
@@ -106,15 +116,17 @@ function App() {
      * This will generate a parse tree, which we can get using get_json_parse_tree
      * 6. get_json_parse_tree, which returns the nodes and edges of the parse tree
      * 7. get_parse_step_info, which returns information about the current parse step
+     * 8. get_lexemes, which returns the list of lexemes used in the parse
      *
      * The meta-information (parse step info) is then stored in the variable "info"
-     * 8. update_grammar_rule_decorations, which updates the decorations in the grammar editor
-     * 9. update_expression_decorations, which updates the decorations in the expression editor
+     * 9.  update_grammar_rule_decorations, which updates the decorations in the grammar editor
+     * 10. update_expression_decorations, which updates the decorations in the expression editor
      *
      **/
 
     function resetStateVariables() {
         setInfo(undefined);
+        setLexemes(undefined);
         setEdges(undefined);
         setNodes(undefined);
         setGenerateParserResult(undefined);
@@ -148,6 +160,7 @@ function App() {
     const [nodes, setNodes] = useState<ParseTreeNode[]>();
     const [edges, setEdges] = useState<Edge[]>();
     const [info, setInfo] = useState<ParseStepInfo>();
+    const [lexemes, setLexemes] = useState<TokenInfo[]>();
     // user interface state
     const [followParser, setFollowParser] = useState<boolean>(false); // default: user controls file switching
 
@@ -237,6 +250,7 @@ function App() {
         console.log("parse_input_result", parse_input_result);
 
         if (parse_input_result === "Parsed successfully") {
+            setExpressionChanged(false);
             get_json_parse_tree();
         }
     }
@@ -331,7 +345,8 @@ function App() {
         setNodes(_n);
         setEdges(_e);
 
-        await get_parse_step_info()
+        await get_parse_step_info();
+        await get_lexemes();
     }
 
     async function get_parse_step_info() {
@@ -342,6 +357,16 @@ function App() {
         console.log(_response);
 
         setInfo(_response);
+    }
+
+    async function get_lexemes() {
+        const _response = await invoke<TokenInfo[]>("get_token_list", {id: parseInfo});
+
+        // DEBUG
+        console.log("Get lexmes");
+        console.log(_response);
+
+        setLexemes(_response);
     }
 
     // Listen on changes to parse step info, and update decorations accordingly
@@ -408,6 +433,116 @@ function App() {
         ed.revealRangeInCenter(range);
     }
 
+    function tokenToRange(monaco: any, model: any, t: TokenInfo) {
+        const startPos = model.getPositionAt(t.startIndex);
+        const endPos = model.getPositionAt(t.stopIndex+1);
+        return new monaco.Range(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column);
+    }
+
+    function applyTokenDecorations(tokens: TokenInfo[]) {
+        const monaco = expressionMonacoRef.current;
+        const ed = expressionEditorRef.current;
+        if (!monaco || !ed) return;
+
+        const model = ed.getModel?.();
+        if (!model) return;
+
+        // Clear previous
+        tokenDecorationCollectionRef.current?.clear?.();
+
+        const Stickiness = monaco.editor.TrackedRangeStickiness;      // runtime enum
+        const RulerLane = monaco.editor.OverviewRulerLane;            // runtime enum
+
+        const maxLabel = 80;
+        const safe = (s: string) => (s ?? '').replace(/\s+/g, ' ').slice(0, maxLabel);
+
+        const decorations: any[] = tokens.map((t, i) => {
+            const range = tokenToRange(monaco, model, t);
+            const label = safe(t.text);
+
+            return {
+                range,
+                options: {
+                    className: `token-highlight token-type-${i%2}`,
+                    stickiness: Stickiness.NeverGrowsWhenTypingAtEdges,
+                    inlineClassNameAffectsLetterSpacing: true,
+
+                    after: {
+                        contentText: ` ${label}`,
+                        inlineClassName: `token-inline-annotation`,
+                    },
+
+                    hoverMessage: {
+                        value:
+                            `**${t.typeName || 'Token'}**\n\n` +
+                            `line: ${t.line}, column: ${t.column}; ` +
+                            `index: [${t.startIndex}..${t.stopIndex+1}] (#${t.tokenIndex})`
+                    },
+
+                    overviewRuler: {
+                        color: 'rgba(180,180,255,0.6)',
+                        position: RulerLane.Center,
+                    },
+                    minimap: { color: 'rgba(180,180,255,0.6)', position: 1 },
+                }
+            };
+        });
+
+        tokenDecorationCollectionRef.current = ed.createDecorationsCollection(decorations);
+    }
+
+    function highlightCurrentToken() {
+        const monaco = expressionMonacoRef.current;
+        const ed = expressionEditorRef.current;
+        if (!monaco || !ed || !lexemes || !info) {
+            currentTokenDecorationRef.current?.clear?.();
+            return;
+        }
+
+        const model = ed.getModel?.();
+        if (!model) return;
+
+        // find token by index
+        const tok = lexemes.find(t => t.tokenIndex === info.token_index) ?? lexemes[info.token_index];
+        if (!tok) {
+            currentTokenDecorationRef.current?.clear?.();
+            return;
+        }
+
+        const range = tokenToRange(monaco, model, tok);
+        currentTokenDecorationRef.current?.clear?.();
+        currentTokenDecorationRef.current = ed.createDecorationsCollection([
+            {
+                range,
+                options: {
+                    className: 'token-type-active',
+                    stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+                },
+            },
+        ]);
+    }
+
+    useEffect(() => {
+        // when tokens change:
+        if (!lexemes?.length) {
+            tokenDecorationCollectionRef.current?.clear?.();
+            return;
+        }
+        applyTokenDecorations(lexemes);
+    }, [lexemes]);
+
+    useEffect(() => {
+        highlightCurrentToken();
+    }, [info, lexemes]);
+
+    // cleanup when editor unmounts
+    useEffect(() => {
+        return () => {
+            tokenDecorationCollectionRef.current?.clear?.();
+            currentTokenDecorationRef.current?.clear?.();
+        };
+    }, []);
+
     function hasChangedGrammarFile(userGrammar: UserGrammar): boolean {
         return Object.values(userGrammar.grammar_files).some(file => file.changed);
     }
@@ -458,20 +593,29 @@ function App() {
 
 
                                 <div className="flex-1 min-h-0">
-                                    {(nodes && edges) /* The input has been parsed, and there is a parser */
-                                        ? (hasChangedGrammarFile(userGrammar)
-                                            ? (<ParserInputOverlay
-                                                onClick={generate_parser_save_grammar_files_parse_input}/>)
-                                            : <Flow ref={flowRef}
-                                                    node={nodes} edge={edges}
-                                                    step_backwards={stepBackwards}
-                                                    step_forwards={stepForwards}
-                                                    current_step={info?.step_id}
-                                                    step_action={go_to_step}/>)
-                                        : ((generateParserResult)
-                                                ? (<ParseExpressionOverlay onClick={parse_input}/>)
-                                                : (<GenerateParserOverlay onClick={generate_parser}/>)
-                                        )}
+                                    {nodes && edges ? (
+                                        hasChangedGrammarFile(userGrammar) || expressionChanged ? (
+                                            hasChangedGrammarFile(userGrammar) ? (
+                                                <ParserInputOverlay onClick={generate_parser_save_grammar_files_parse_input} />
+                                            ) : (
+                                                <ExpressionChangedOverlay onClick={parse_input} />
+                                            )
+                                        ) : (
+                                            <Flow
+                                                ref={flowRef}
+                                                node={nodes}
+                                                edge={edges}
+                                                step_backwards={stepBackwards}
+                                                step_forwards={stepForwards}
+                                                current_step={info?.step_id}
+                                                step_action={go_to_step}
+                                            />
+                                        )
+                                    ) : generateParserResult ? (
+                                        <ParseExpressionOverlay onClick={parse_input} />
+                                    ) : (
+                                        <GenerateParserOverlay onClick={generate_parser} />
+                                    )}
                                 </div>
                             </div>
                         </Allotment.Pane>
@@ -561,7 +705,7 @@ function App() {
                                             }}
                                             defaultValue={sampleInputText}
                                             onMount={handleExpressionEditorDidMount}
-                                            onChange={(value) => setExpressionContent(value || "")}/>
+                                            onChange={handleExpressionChange}/>
                                 </Allotment.Pane>
                             </Allotment>
                         </Allotment.Pane>

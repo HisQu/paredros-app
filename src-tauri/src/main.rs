@@ -189,6 +189,20 @@ struct ParseStepInfo {
     input_context_snippet: Option<String>,
 }
 
+#[derive(Debug, FromPyObject, Serialize)]
+#[pyo3(from_item_all)]
+#[serde(rename_all = "camelCase")]
+struct TokenInfo {
+    text: String,
+    type_name: String,
+    type_id: i32,
+    line: i32,
+    column: i32,
+    start_index: i32,
+    stop_index: i32,
+    token_index: i32,
+}
+
 /// Gets the property "grammar" from a ParseInformation instance
 #[tauri::command]
 fn get_user_grammar(id: usize, store: State<ParseInfoStore>) -> Result<UserGrammar, String> {
@@ -217,6 +231,25 @@ fn get_parse_step_info(id: usize, store: State<ParseInfoStore>) -> Result<ParseS
             .call0(py)
             .map_err(|e| e.to_string())?;
         py_step.extract(py).map_err(|e| e.to_string())
+    })
+}
+
+/// Gets the list of lexemes used in the expression. It also gets where the lexemes are located in the input string.
+#[tauri::command]
+fn get_token_list(id: usize, store: State<ParseInfoStore>) -> Result<Vec<TokenInfo>, String> {
+    let nodes = store.nodes.lock().unwrap();
+    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
+
+    Python::with_gil(|py| {
+        // Call the Python method that returns the list of token dicts
+        let py_tokens: Py<PyAny> = parse_info
+            .getattr(py, "get_token_list")
+            .map_err(|e| e.to_string())?
+            .call0(py)
+            .map_err(|e| e.to_string())?;
+
+        // Extract the Python list of dicts into a Vec<TokenInfo>
+        py_tokens.extract::<Vec<TokenInfo>>(py).map_err(|e| e.to_string())
     })
 }
 
@@ -297,6 +330,7 @@ fn main() {
             go_to_step,
             get_user_grammar,
             get_parse_step_info,
+            get_token_list,
             step_forwards,
             step_backwards,
             get_json_parse_tree
