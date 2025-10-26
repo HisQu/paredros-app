@@ -92,7 +92,7 @@ fn go_to_step(
     step_id: usize,
     store: State<ParseInfoStore>,
 ) -> Result<String, String> {
-        let nodes = store.nodes.lock().unwrap();
+    let nodes = store.nodes.lock().unwrap();
     let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
 
     Python::with_gil(|py| {
@@ -103,6 +103,42 @@ fn go_to_step(
         Ok("Went to indicated step successfully".to_string())
     })
 }
+
+/// Step to next decision
+#[tauri::command]
+fn step_until_next_decision(
+    id: usize,
+    store: State<ParseInfoStore>,
+) -> Result<String, String> {
+    let nodes = store.nodes.lock().unwrap();
+    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
+
+    Python::with_gil(|py| {
+        let func = parse_info.getattr(py, "step_until_next_decision").map_err(|e| e.to_string())?;
+        
+        func.call0(py).map_err(|e| e.to_string())?;
+
+        Ok("Went to indicated step successfully".to_string())
+    })
+}
+
+#[tauri::command]
+fn step_back_until_previous_decision(
+    id: usize,
+    store: State<ParseInfoStore>,
+) -> Result<String, String> {
+    let nodes = store.nodes.lock().unwrap();
+    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
+
+    Python::with_gil(|py| {
+        let func = parse_info.getattr(py, "step_back_until_previous_decision").map_err(|e| e.to_string())?;
+        
+        func.call0(py).map_err(|e| e.to_string())?;
+
+        Ok("Went to indicated step successfully".to_string())
+    })
+}
+
 
 /// This class mirrors the Python class
 #[derive(Debug, FromPyObject, Serialize)]
@@ -218,9 +254,9 @@ fn get_user_grammar(id: usize, store: State<ParseInfoStore>) -> Result<UserGramm
     })
 }
 
-/// Gets the meta information dictionary with 
+/// Gets the meta information dictionary
 #[tauri::command]
-fn get_parse_step_info(id: usize, store: State<ParseInfoStore>) -> Result<ParseStepInfo, String> {
+fn get_current_parse_step_info(id: usize, store: State<ParseInfoStore>) -> Result<ParseStepInfo, String> {
     let nodes = store.nodes.lock().unwrap();
     let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
 
@@ -232,6 +268,45 @@ fn get_parse_step_info(id: usize, store: State<ParseInfoStore>) -> Result<ParseS
             .map_err(|e| e.to_string())?;
         py_step.extract(py).map_err(|e| e.to_string())
     })
+}
+
+/// Gets the meta information dictionary
+#[tauri::command]
+fn get_next_parse_step_info(id: usize, store: State<ParseInfoStore>) -> Result<ParseStepInfo, String> {
+    let nodes = store.nodes.lock().unwrap();
+    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
+
+    let current_step: ParseStepInfo = Python::with_gil(|py| {
+        let py_step = parse_info
+            .getattr(py, "get_current_parse_step_info")
+            .map_err(|e| e.to_string())?
+            .call0(py)
+            .map_err(|e| e.to_string())?;
+        py_step.extract(py).map_err(|e| e.to_string())
+    })?;
+
+    let old_step_id = current_step.step_id.parse::<i32>().unwrap();
+
+    Python::with_gil(|py| {
+        let func = parse_info.getattr(py, "go_to_step").map_err(|e| e.to_string())?;
+        func.call1(py, (old_step_id+1,)).map_err(|e| e.to_string())
+    })?;
+
+    let next_step = Python::with_gil(|py| {
+        let py_step = parse_info
+            .getattr(py, "get_current_parse_step_info")
+            .map_err(|e| e.to_string())?
+            .call0(py)
+            .map_err(|e| e.to_string())?;
+        py_step.extract(py).map_err(|e| e.to_string())
+    });
+
+    Python::with_gil(|py| {
+        let func = parse_info.getattr(py, "go_to_step").map_err(|e| e.to_string())?;
+        func.call1(py, (old_step_id,)).map_err(|e| e.to_string())
+    })?;
+
+    next_step
 }
 
 /// Gets the list of lexemes used in the expression. It also gets where the lexemes are located in the input string.
@@ -329,10 +404,13 @@ fn main() {
             parse_input,
             go_to_step,
             get_user_grammar,
-            get_parse_step_info,
+            get_current_parse_step_info,
+            get_next_parse_step_info,
             get_token_list,
             step_forwards,
             step_backwards,
+            step_until_next_decision,
+            step_back_until_previous_decision,
             get_json_parse_tree
         ])
         .run(tauri::generate_context!())

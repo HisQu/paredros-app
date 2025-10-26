@@ -54,6 +54,7 @@ export interface ParseStepInfo {
   possible_transitions: Transition[];
   grammar_rule_location: GrammarRuleLocation;
   input_context_snippet: string | null;
+  step_type: "Decision" | "Rule entry" | "Rule exit" | "Token consume" | "Error";
 }
 
 export interface TokenInfo {

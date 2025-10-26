@@ -24,6 +24,7 @@ import ParseTreeNodeComponent from "../components/ParseTreeNodeComponent";
 import {Input} from "./ui/input.tsx";
 import {Badge} from "./ui/badge.tsx";
 import {Checkbox, CheckboxField, CheckboxGroup} from "./ui/checkbox.tsx";
+import {ParseStepInfo} from "../interfaces/UserGrammar.ts";
 
 const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
@@ -159,8 +160,11 @@ type FlowProps = {
     edge: Edge[];
     step_forwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
     step_backwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
+    step_to_last_decision: (event: React.MouseEvent<HTMLButtonElement>) => void;
+    step_to_next_decision: (event: React.MouseEvent<HTMLButtonElement>) => void;
     current_step?: string;
     step_action: (step_id: number) => void;
+    next_parse_step_info: ParseStepInfo | undefined;
 };
 
 export type FlowHandle = {
@@ -168,7 +172,7 @@ export type FlowHandle = {
 };
 
 const Flow = forwardRef<FlowHandle, FlowProps>(
-    ({node: paramNodes, edge: paramEdges, step_backwards, step_forwards, current_step, step_action}, ref) => {
+    ({node: paramNodes, edge: paramEdges, step_backwards, step_forwards, step_to_last_decision, step_to_next_decision, current_step, step_action, next_parse_step_info}, ref) => {
         const rfInstance = useRef<any | null>(null); // not pretty, but typing did not work
 
         // Track expanded nodes in a Set, with root nodes expanded by default
@@ -336,6 +340,10 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
             setAutomaticExpanding(checked);
         }
 
+        function checkSameIndex(parse_step_info: ParseStepInfo, index: number): boolean {
+            return parse_step_info.chosen_transition_index === index+1;
+        }
+
         const automaticExpandingWrapper = () => {
             if (automaticExpanding) {
                 expand_all();
@@ -388,9 +396,11 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
                     <Button onClick={() => onLayout("LR")}>horizontal layout</Button>
                     <Button color="green" onClick={step_backwards}>Step Back</Button>
                     <Button color="green" onClick={step_forwards}>Step Forward</Button>
-                    <Badge color={"pink"}><b>[Debug] Current Step is: {current_step}</b></Badge>
+                    <Button color="green" onClick={step_to_last_decision}>Step to Last Decision</Button>
+                    <Button color="green" onClick={step_to_next_decision}>Step to Next Decision</Button>
+                    <Badge color={"pink"}></Badge>
                     <Input type={"number"} min={0} max={500} step={1} value={parseInt(current_step || "0")}
-                           onChange={onChangeListener}/>
+                                            onChange={onChangeListener}/>
                     <Button color="fuchsia" onClick={toggle_expand}>Toggle Expand</Button>
                     <CheckboxGroup>
                         <CheckboxField>
@@ -398,6 +408,60 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
                             <span data-slot="label">Expand when stepping</span>
                         </CheckboxField>
                     </CheckboxGroup>
+                </Panel>
+                <Panel position="top-left">
+                    <h3 className="text-lg font-semibold mb-2 text-gray-700">Rule Stack</h3>
+                    <div className="mb-5 p-3 bg-slate-100 rounded-md border border-slate-200 max-h-60 overflow-y-auto shadow-sm">
+                        {next_parse_step_info?.rule_stack && next_parse_step_info.rule_stack.length > 0 ? (
+                            <ul className="divide-y divide-slate-300">
+                                {[...next_parse_step_info.rule_stack].reverse().map((rule, index) => (
+                                    <li key={index} className="py-1.5">
+                                        <code className="text-sm text-gray-800">{rule}</code>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-slate-500 italic">Empty stack</p>
+                        )}
+                    </div>
+
+                    <h3 className="text-lg font-semibold mb-2 text-gray-700">Type: {next_parse_step_info?.step_type || "N/A"}</h3>
+
+
+                    <div className="mb-5 p-3 bg-slate-100 rounded-md border border-slate-200 shadow-sm">
+                        {next_parse_step_info?.step_type === "Token consume" ? (
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-base font-medium text-gray-700">Consuming:</h3>
+                                <code className="px-2 py-1 bg-violet-100 text-violet-800 rounded-md text-sm font-mono">{next_parse_step_info.current_token_repr}</code>
+                            </div>
+                        ) : (
+                            <>
+                                <h3 className="text-base font-semibold mb-2 text-gray-700">
+                                    Possible Alternatives ({next_parse_step_info?.possible_transitions?.length ?? 0})
+                                </h3>
+                                <div className="max-h-60 overflow-y-auto">
+                                    {next_parse_step_info?.possible_transitions && next_parse_step_info.possible_transitions.length > 0 ? (
+                                        <ul className="divide-y divide-slate-300">
+                                            {next_parse_step_info.possible_transitions.map((t, i) => {
+                                                const isChosen = checkSameIndex(next_parse_step_info, i);
+                                                return (
+                                                    <li key={i} className={`py-1.5 px-2 rounded-md ${isChosen ? "bg-blue-100" : ""}`}>
+                                                        <code className={`text-sm flex items-center gap-2 ${isChosen ? "text-blue-700 font-bold" : "text-gray-800"}`}>
+                                                            {isChosen && <span className="text-lg">&#8594;</span>}
+                                                            <span>{t.matches}</span>
+                                                            {isChosen && <span className="font-medium text-xs bg-blue-200 text-blue-900 px-1.5 py-0.5 rounded-full">(chosen)</span>}
+                                                        </code>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-slate-500 italic">No alternatives</p>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </Panel>
                 <Controls/>
                 <MiniMap/>

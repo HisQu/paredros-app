@@ -72,7 +72,6 @@ function App() {
         setExpressionChanged(true);
     }
 
-
     // Refs / References declarations
     const providerRef = useRef<GrammarFilesDataProvider>();
     const flowRef = useRef<FlowHandle>(null);
@@ -115,7 +114,7 @@ function App() {
      *
      * This will generate a parse tree, which we can get using get_json_parse_tree
      * 6. get_json_parse_tree, which returns the nodes and edges of the parse tree
-     * 7. get_parse_step_info, which returns information about the current parse step
+     * 7. get_current_parse_step_info, which returns information about the current parse step
      * 8. get_lexemes, which returns the list of lexemes used in the parse
      *
      * The meta-information (parse step info) is then stored in the variable "info"
@@ -125,13 +124,12 @@ function App() {
      **/
 
     function resetStateVariables() {
-        setInfo(undefined);
+        setParseStepInfo(undefined);
         setLexemes(undefined);
         setEdges(undefined);
         setNodes(undefined);
         setGenerateParserResult(undefined);
     }
-
 
     async function load_grammar_file() {
         // DEBUG
@@ -159,7 +157,8 @@ function App() {
     // values which change with each step
     const [nodes, setNodes] = useState<ParseTreeNode[]>();
     const [edges, setEdges] = useState<Edge[]>();
-    const [info, setInfo] = useState<ParseStepInfo>();
+    const [parseStepInfo, setParseStepInfo] = useState<ParseStepInfo>();
+    const [nextInfo, setNextInfo] = useState<ParseStepInfo>();
     const [lexemes, setLexemes] = useState<TokenInfo[]>();
     // user interface state
     const [followParser, setFollowParser] = useState<boolean>(false); // default: user controls file switching
@@ -251,7 +250,8 @@ function App() {
 
         if (parse_input_result === "Parsed successfully") {
             setExpressionChanged(false);
-            get_json_parse_tree();
+            await get_json_parse_tree();
+            await get_lexemes();
         }
     }
 
@@ -333,6 +333,20 @@ function App() {
         await get_json_parse_tree();
     }
 
+    async function stepToLastDecision() {
+        // DEBUG
+        console.log("stepToLastDecision")
+        await invoke("step_back_until_previous_decision", {id: parseInfo})
+        await get_json_parse_tree();
+    }
+
+    async function stepToNextDecision() {
+        // DEBUG
+        console.log("stepToNextDecision")
+        await invoke("step_until_next_decision", {id: parseInfo})
+        await get_json_parse_tree();
+    }
+
     async function get_json_parse_tree() {
         const _response = await invoke("get_json_parse_tree", {id: parseInfo});
 
@@ -345,25 +359,32 @@ function App() {
         setNodes(_n);
         setEdges(_e);
 
-        await get_parse_step_info();
-        await get_lexemes();
+        await get_current_parse_step_info();
+        await get_next_parse_step_info();
     }
 
-    async function get_parse_step_info() {
-        const _response = await invoke<ParseStepInfo>("get_parse_step_info", {id: parseInfo});
+    async function get_current_parse_step_info() {
+        const _response = await invoke<ParseStepInfo>("get_current_parse_step_info", {id: parseInfo});
 
         // DEBUG
         console.log("Parse Step Info");
         console.log(_response);
 
-        setInfo(_response);
+        setParseStepInfo(_response);
+    }
+
+    async function get_next_parse_step_info() {
+        const _response = await invoke<ParseStepInfo>("get_next_parse_step_info", {
+            id: parseInfo,
+        });
+        setNextInfo(_response);
     }
 
     async function get_lexemes() {
         const _response = await invoke<TokenInfo[]>("get_token_list", {id: parseInfo});
 
         // DEBUG
-        console.log("Get lexmes");
+        console.log("Get lexemes");
         console.log(_response);
 
         setLexemes(_response);
@@ -371,7 +392,7 @@ function App() {
 
     // Listen on changes to parse step info, and update decorations accordingly
     useEffect(() => {
-        const loc = info?.grammar_rule_location;
+        const loc = parseStepInfo?.grammar_rule_location;
         if (!loc) return;
 
         // Only auto-switch when followParser is enabled
@@ -387,7 +408,7 @@ function App() {
             // Different file is open and follow is OFF: clear any stale decorations
             grammarDecorationCollectionRef.current?.clear?.();
         }
-    }, [info, activeFileIndex, followParser]);
+    }, [parseStepInfo, activeFileIndex, followParser]);
 
     function updateGrammarRuleDecoration(loc: GrammarRuleLocation) {
         const monaco = grammarMonacoRef.current;
@@ -494,7 +515,7 @@ function App() {
     function highlightCurrentToken() {
         const monaco = expressionMonacoRef.current;
         const ed = expressionEditorRef.current;
-        if (!monaco || !ed || !lexemes || !info) {
+        if (!monaco || !ed || !lexemes || !parseStepInfo) {
             currentTokenDecorationRef.current?.clear?.();
             return;
         }
@@ -503,7 +524,7 @@ function App() {
         if (!model) return;
 
         // find token by index
-        const tok = lexemes.find(t => t.tokenIndex === info.token_index) ?? lexemes[info.token_index];
+        const tok = lexemes.find(t => t.tokenIndex === parseStepInfo.token_index) ?? lexemes[parseStepInfo.token_index];
         if (!tok) {
             currentTokenDecorationRef.current?.clear?.();
             return;
@@ -533,7 +554,7 @@ function App() {
 
     useEffect(() => {
         highlightCurrentToken();
-    }, [info, lexemes]);
+    }, [parseStepInfo, lexemes]);
 
     // cleanup when editor unmounts
     useEffect(() => {
@@ -585,7 +606,7 @@ function App() {
                                         {/* Snippet box — edge-to-edge */}
                                         <div
                                             className="flex-1 flex items-center justify-center font-mono bg-violet-500 text-2xl text-gray-100 h-full">
-                                            {info?.input_context_snippet ? info.input_context_snippet : ""}
+                                            {parseStepInfo?.input_context_snippet ? parseStepInfo.input_context_snippet : ""}
                                         </div>
 
                                     </div>
@@ -607,8 +628,11 @@ function App() {
                                                 edge={edges}
                                                 step_backwards={stepBackwards}
                                                 step_forwards={stepForwards}
-                                                current_step={info?.step_id}
+                                                step_to_last_decision={stepToLastDecision}
+                                                step_to_next_decision={stepToNextDecision}
+                                                current_step={parseStepInfo?.step_id}
                                                 step_action={go_to_step}
+                                                next_parse_step_info={nextInfo}
                                             />
                                         )
                                     ) : generateParserResult ? (
