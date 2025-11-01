@@ -70,9 +70,9 @@ ortsType : OP | OPID | CIV | CIVIT | BURGUO | MAIORIS_CASTRI | CASTRO ;
 month : IAN | FEBR | MART | APR | MAI | IUN | IUL | AUG | SEPT | OCT | NOV | DEC ;
 
 stadtnamen : STADTNAMEN ;
-name : (WORD (DE (stadt | WORD))? ) ;
+name : ((WORD)+ (DE (stadt | WORD))? )  ;
 alias : (AL | D | DICTUS | AL DICTUS | AL D) name ;
 diocAbks : STADTNAMEN ;
 
-// Whitespace
-WS : [ 	]+ -> skip ;
+// Whitespace (include newlines)
+WS : [ \t\r\n]+ -> skip ;
