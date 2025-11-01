@@ -8,7 +8,7 @@ interface OverlayProps {
 
 const BigLoadGrammarOverlay: React.FC<OverlayProps> = ({onClick}) => {
     return (
-        <div className="flex-1 text-center mt-12">
+        <div className="flex flex-col flex-1 items-center justify-center text-center p-6">
             <svg
                 fill="none"
                 stroke="currentColor"
@@ -24,19 +24,23 @@ const BigLoadGrammarOverlay: React.FC<OverlayProps> = ({onClick}) => {
                     strokeLinejoin="round"
                 />
             </svg>
-            <h3 className="mt-2 text-sm font-semibold text-gray-900">No grammar loaded</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by loading a grammar.</p>
+
+            <h3 className="mt-4 text-sm font-semibold text-gray-900">
+                Open a Grammar file
+            </h3>
+
+            <p className="mt-1 text-sm text-gray-500">
+                Get started by loading a grammar.
+            </p>
+
             <div className="mt-6">
-                <Button
-                    onClick={onClick}
-                    color={"lime"}
-                >
-                    <FolderOpenIcon aria-hidden="true" className="mr-1.5 -ml-0.5 size-5"/>
+                <Button onClick={onClick} color="lime">
+                    <FolderOpenIcon aria-hidden="true" className="mr-2 size-5" />
                     Open Grammar file
                 </Button>
             </div>
         </div>
-    )
+    );
 }
 
 const ParserInputOverlay: React.FC<OverlayProps> = ({onClick}) => {
