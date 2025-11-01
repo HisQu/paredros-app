@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import {invoke} from "@tauri-apps/api/core";
 import { listen } from '@tauri-apps/api/event';
-import { Button } from './ui/button';
 import type {PySetupProgressType} from "../interfaces/PySetupProgressType.ts";
 
 type PythonSetupProps = {

@@ -5,7 +5,7 @@ import {open} from '@tauri-apps/plugin-dialog';
 import {BaseDirectory, writeTextFile} from '@tauri-apps/plugin-fs';
 // UI Components
 import './App.css';
-import Flow, {FlowHandle} from "./components/FlowPlot.tsx";
+import Flow from "./components/FlowPlot.tsx";
 import UnhandledRejectionDialog from "./components/UnhandledRejectionDialog.tsx";
 import PythonSetupComponent from "./components/PythonSetupComponent.tsx";
 // Interfaces
@@ -74,7 +74,6 @@ function App() {
 
     // Refs / References declarations
     const providerRef = useRef<GrammarFilesDataProvider>();
-    const flowRef = useRef<FlowHandle>(null);
 
     // decorations in the grammar monaco editor
     const grammarEditorRef = useRef<Parameters<OnMount>[0] | null>(null);
@@ -226,13 +225,6 @@ function App() {
 
         // load the new parse tree
         await get_json_parse_tree();
-
-        // expand all nodes in the parse tree plot
-        if (flowRef.current) {
-            // DEBUG
-            console.log("expandAll");
-            flowRef.current.expandAll();
-        }
     }
 
     async function parse_input() {
@@ -637,7 +629,6 @@ function App() {
                                             )
                                         ) : (
                                             <Flow
-                                                ref={flowRef}
                                                 node={nodes}
                                                 edge={edges}
                                                 step_backwards={stepBackwards}
