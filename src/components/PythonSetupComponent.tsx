@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import {invoke} from "@tauri-apps/api/core";
 import { listen } from '@tauri-apps/api/event';
-import { Button } from './ui/button';
 import type {PySetupProgressType} from "../interfaces/PySetupProgressType.ts";
 
 type PythonSetupProps = {
@@ -11,6 +10,15 @@ type PythonSetupProps = {
 
 
 const PythonSetupComponent: React.FC<PythonSetupProps> = ({ pyProgress, setPyProgress }) => {
+
+    const handleInitPython = async () => {
+        try {
+            await invoke('initialise_python_frontend_wrapper');
+        } catch (err) {
+            console.error('Failed to invoke Python init:', err);
+            // setPyProgress({Error: err});
+        }
+    };
 
     useEffect(() => {
         const unlistenPromise = listen<PySetupProgressType>('py/setup-progress', (evt) => {
@@ -28,19 +36,12 @@ const PythonSetupComponent: React.FC<PythonSetupProps> = ({ pyProgress, setPyPro
             console.log(payload);
         });
 
+        handleInitPython();
+
         return () => {
             unlistenPromise.then((unlisten) => unlisten());
         };
     }, []);
-
-    const handleInitPython = async () => {
-        try {
-            await invoke('initialise_python_frontend_wrapper');
-        } catch (err) {
-            console.error('Failed to invoke Python init:', err);
-            // setPyProgress({Error: err});
-        }
-    };
 
     const isThereAnError = () => {
         return typeof pyProgress === 'object' && 'Error' in pyProgress;
@@ -48,8 +49,12 @@ const PythonSetupComponent: React.FC<PythonSetupProps> = ({ pyProgress, setPyPro
 
     return (
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
-            <Button onClick={handleInitPython}>Init Python</Button>
-
+            <img
+                className="h-22"
+                src="/paredros_wordmark.png"
+                alt="Paredros"
+                style={{marginRight: '1px'}}
+            />
             {pyProgress !== 'Idle' && (
                 <div
                     className={`px-4 py-2 rounded text-sm max-w-md text-left

@@ -20,6 +20,7 @@ export interface ParseTreeNodeData extends Record<string, unknown> {
   hasChildren?: boolean;
   isExpanded?: boolean;
   toggleNode?: (nodeId: string) => void;
+  isLastAdded?: boolean;
 }
 
 export interface ParseTreeNode extends Node<ParseTreeNodeData> { }

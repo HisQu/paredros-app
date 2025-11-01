@@ -46,7 +46,7 @@ export interface ParseStepInfo {
   token_index: number;
   chosen_transition_index: number;
   input_text_context: string;
-  lookahead_repr: string;
+  lookahead_repr: string[];
   matching_error: boolean;
   is_error_node: boolean;
   next_input_token: string | null;
@@ -54,6 +54,7 @@ export interface ParseStepInfo {
   possible_transitions: Transition[];
   grammar_rule_location: GrammarRuleLocation;
   input_context_snippet: string | null;
+  step_type: "Decision" | "Rule entry" | "Rule exit" | "Token consume" | "Error";
 }
 
 export interface TokenInfo {
