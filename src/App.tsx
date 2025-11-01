@@ -566,7 +566,7 @@ function App() {
             <UnhandledRejectionDialog/>
 
             {/* tailwindcss Safelist */}
-            <span className={"bg-blue-300 bg-blue-400 bg-violet-300 bg-violet-400"}></span>
+            <span className={"bg-blue-300 bg-blue-400 bg-blue-600 bg-violet-300 bg-violet-400 bg-violet-600"}></span>
 
             {pyProgress !== 'Done' ? <PythonSetupComponent pyProgress={pyProgress} setPyProgress={setPyProgress}/> :
                 userGrammar ? <div className="w-screen h-screen">
@@ -597,17 +597,17 @@ function App() {
 
                                         {/* Snippet box */}
                                         <div
-                                            className="flex-1 flex items-center justify-center font-mono bg-violet-500 text-2xl text-gray-100 h-full">
-                                            {parseStepInfo?.lookahead_repr && (() => {
-                                                const la = parseStepInfo!.lookahead_repr;
+                                            className="flex-1 flex gap-10 items-center justify-center font-mono bg-violet-500 text-gray-100 h-full">
+                                            {nextInfo?.lookahead_repr && (() => {
+                                                const la = nextInfo!.lookahead_repr;
                                                 // Passe diese Funktion an, um das Opazitätsverhalten zu ändern.
                                                 const opacityFn = (i: number) => Math.max(0, 1 - 0.3 * i); // 0 -> 1, 1 -> 0.7, 2 -> 0.4
 
                                                 return (
                                                     <>
                                                         {la.map((entry, idx) => (
-                                                            <span key={idx} className={"mr-3"} style={{ opacity: opacityFn(idx) }}>
-                                                                {idx}{'. '}{entry}{idx < la.length-1 ? ',' : ''}
+                                                            <span key={idx} style={{ opacity: opacityFn(idx) }} className="inline-flex items-center rounded-md bg-violet-400/40 px-2 py-1 text-2xl font-medium text-white inset-ring">
+                                                                {idx}{'. '}{entry}
                                                             </span>
                                                         ))}
                                                     </>
