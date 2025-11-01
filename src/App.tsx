@@ -615,7 +615,7 @@ function App() {
                                                     <>
                                                         {la.map((entry, idx) => (
                                                             <span key={idx} className={"mr-3"} style={{ opacity: opacityFn(idx) }}>
-                                                                {entry}{idx < la.length-1 ? ',' : ''}
+                                                                {idx}{'. '}{entry}{idx < la.length-1 ? ',' : ''}
                                                             </span>
                                                         ))}
                                                     </>

@@ -1,4 +1,11 @@
-import {useCallback, useEffect, useState, forwardRef, useImperativeHandle, useRef} from "react";
+/*  FlowPlot.tsx
+ *  A React component that visualizes a parse tree using React Flow.
+ *  The component hooks in to App.tsx to trigger stepping through the parse process.
+ *  It listens to the changes from the backend (with useEffect) and redraws the parse tree accordingly.
+ *  It supports expanding/collapsing nodes, automatic layout with dagre, and subtree dragging.
+ *  */
+
+import {useCallback, useEffect, useState, forwardRef, useRef} from "react";
 // React Flow
 import {
     ReactFlow,
@@ -191,6 +198,11 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
         // Layout direction state
         const [direction, setDirection] = useState<LayoutDirection>("TB");
 
+        const prevNodeIdsRef = useRef<Set<string>>(new Set(paramNodes.map(n => n.id)));
+
+        // whether automatic expanding is toggled on
+        const [automaticExpanding, setAutomaticExpanding] = useState(true);
+
         // Toggle function to expand/collapse individual nodes
         const onToggleNode = useCallback((nodeId: string) => {
             setExpandedNodes(prev => {
@@ -264,23 +276,7 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
             [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges]
         );
 
-        const toggle_expand = useCallback(() => {
-            // Create a set of all node IDs from the input nodes
-            const allNodeIds = new Set(paramNodes.map(node => node.id));
-            // If all nodes are already expanded, collapse back to only the root nodes.
-            if (expandedNodes.size === allNodeIds.size) {
-                const rootNodeIds = paramNodes
-                    .filter(node => !paramEdges.some(edge => edge.target === node.id))
-                    .map(node => node.id);
-                setExpandedNodes(new Set(rootNodeIds));
-            } else {
-                // Otherwise, expand all nodes.
-                setExpandedNodes(allNodeIds);
-            }
-        }, [paramNodes, paramEdges, expandedNodes]);
-
-        // Function to toggle expansion of all nodes
-        const expand_all = () => {
+        const expandAll = () => {
             const allNodeIds = new Set(paramNodes.map(node => node.id));
             setExpandedNodes(allNodeIds);
         }
@@ -328,14 +324,49 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
             );
         }, [paramNodes, paramEdges, setNodes]);
 
+        const reconcileExpanded = useCallback((autoExpandNew: boolean) => {
+            // DEBUG
+            console.log("Reconcile expanded nodes. Auto expand new:", autoExpandNew);
+
+            setExpandedNodes(prev => {
+                // DEBUG
+                console.log("Previous expanded nodes:", prev);
+
+                const currentIds = new Set(paramNodes.map(n => n.id));
+
+                // DEBUG
+                console.log("Current node IDs:", currentIds);
+
+                const next = new Set<string>();
+                // keep only still-existing nodes
+                for (const id of prev) if (currentIds.has(id)){
+                    next.add(id);
+                }
+
+                // auto expand only the newly added
+                if (autoExpandNew) {
+                    for (const id of currentIds) if (!prevNodeIdsRef.current.has(id)) {
+                        // DEBUG
+                        console.log("Expanding new node:", id);
+                        next.add(id);
+                    }
+                }
+                prevNodeIdsRef.current = new Set(paramNodes.map(n => n.id));
+                return next;
+            });
+        }, [paramNodes]);
+
+        useEffect(() => {
+            reconcileExpanded(automaticExpanding);
+            fitView();
+        }, [paramNodes, automaticExpanding]);
+
         function onChangeListener(event: React.ChangeEvent<HTMLInputElement>) {
             const value = parseInt(event.target.value, 10);
             if (!isNaN(value)) {
                 step_action(value);
             }
         }
-
-        const [automaticExpanding, setAutomaticExpanding] = useState(true);
 
         function handleAutomaticExpandingChange(checked: boolean) {
             setAutomaticExpanding(checked);
@@ -350,23 +381,6 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
                 rfInstance.current.fitView();
             }
         }
-
-        const automaticExpandingWrapper = () => {
-            if (automaticExpanding) {
-                expand_all();
-            }
-            fitView();
-        }
-
-        // when the input nodes change, run several actions
-        useEffect(() => {
-            automaticExpandingWrapper();
-        }, [paramNodes]);
-
-        // Expose methods to parent
-        useImperativeHandle(ref, () => ({
-            expandAll: automaticExpandingWrapper,
-        }));
 
         return (
             <ReactFlow
@@ -403,11 +417,11 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
                            onChange={onChangeListener}
                            className="text-black bg-blue-100 rounded-sm"
                     />
-                    <Button color="fuchsia" onClick={toggle_expand}>Toggle Expand</Button>
+                    <Button color="fuchsia" onClick={expandAll}>Expand all</Button>
                     <CheckboxGroup>
                         <CheckboxField>
                             <Checkbox onChange={handleAutomaticExpandingChange} defaultChecked={true}/>
-                            <span data-slot="label">Expand when stepping</span>
+                            <span data-slot="label">Auto-expand newly added nodes</span>
                         </CheckboxField>
                     </CheckboxGroup>
                 </Panel>

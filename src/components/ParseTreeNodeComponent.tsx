@@ -38,6 +38,8 @@ const ParseTreeNodeComponent = ({
     >
         <span>
           {data.ruleName || data.token} {expandIndicator}
+            <br/>
+            {id}
         </span>
     </div>
   }
