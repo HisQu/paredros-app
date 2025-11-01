@@ -5,7 +5,7 @@
  *  It supports expanding/collapsing nodes, automatic layout with dagre, and subtree dragging.
  *  */
 
-import {useCallback, useEffect, useState, forwardRef, useRef} from "react";
+import {useCallback, useEffect, useState, forwardRef, useRef, useLayoutEffect} from "react";
 // React Flow
 import {
     ReactFlow,
@@ -128,7 +128,8 @@ const getLayoutedElements = (
     edges: Edge[],
     expandedNodes: Set<string>,
     onToggleNode: (nodeId: string) => void,
-    _direction: LayoutDirection = "TB"
+    _direction: LayoutDirection = "TB",
+    lastAddedNodeIds?: Set<string> | null,
 ) => {
     // Filter visible edges to only those connecting visible nodes
     const visibleNodes = getVisibleNodes(nodes, edges, expandedNodes);
@@ -153,9 +154,10 @@ const getLayoutedElements = (
 
     const newNodes = visibleNodes.map((node) => {
         const nodeWithPosition = dagreGraph.node(node.id);
+        const isLastAdded = lastAddedNodeIds?.has(node.id);
+
         return {
             ...node,
-            // Set the custom type so React Flow renders our custom node component.
             type: "parseTreeNode",
             targetPosition: isHorizontal ? ("left" as Position) : ("top" as Position),
             sourcePosition: isHorizontal ? ("right" as Position) : ("bottom" as Position),
@@ -165,8 +167,9 @@ const getLayoutedElements = (
             },
             data: {
                 ...node.data,
-                toggleNode: onToggleNode
-            }
+                toggleNode: onToggleNode,
+                isLastAdded,
+            },
         };
     });
 
@@ -198,10 +201,12 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
         // Layout direction state
         const [direction, setDirection] = useState<LayoutDirection>("TB");
 
-        const prevNodeIdsRef = useRef<Set<string>>(new Set(paramNodes.map(n => n.id)));
+        const prevNodeIdsRef = useRef<Set<string> | null>(null);
 
         // whether automatic expanding is toggled on
         const [automaticExpanding, setAutomaticExpanding] = useState(true);
+
+        const [lastAddedNodeIds, setLastAddedNodeIds] = useState<Set<string> | null>(null);
 
         // Toggle function to expand/collapse individual nodes
         const onToggleNode = useCallback((nodeId: string) => {
@@ -237,7 +242,9 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
             paramNodes,
             paramEdges,
             expandedNodes,
-            onToggleNode
+            onToggleNode,
+            direction,
+            lastAddedNodeIds
         );
 
         const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
@@ -265,13 +272,12 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
                     paramEdges,
                     expandedNodes,
                     onToggleNode,
-                    _direction || direction
+                    _direction || direction,
+                    lastAddedNodeIds
                 );
 
                 setNodes([...layoutedNodes]);
                 setEdges([...layoutedEdges]);
-
-                fitView();
             },
             [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges]
         );
@@ -324,42 +330,65 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
             );
         }, [paramNodes, paramEdges, setNodes]);
 
+        const buildParentMap = (edges: Edge[]) => {
+            const parent = new Map<string, string>();
+            edges.forEach(e => parent.set(e.target, e.source));
+            return parent;
+        };
+
         const reconcileExpanded = useCallback((autoExpandNew: boolean) => {
-            // DEBUG
-            console.log("Reconcile expanded nodes. Auto expand new:", autoExpandNew);
-
             setExpandedNodes(prev => {
-                // DEBUG
-                console.log("Previous expanded nodes:", prev);
-
                 const currentIds = new Set(paramNodes.map(n => n.id));
-
-                // DEBUG
-                console.log("Current node IDs:", currentIds);
-
                 const next = new Set<string>();
-                // keep only still-existing nodes
-                for (const id of prev) if (currentIds.has(id)){
-                    next.add(id);
-                }
+                prev.forEach(id => { if (currentIds.has(id)) next.add(id); });
 
-                // auto expand only the newly added
-                if (autoExpandNew) {
-                    for (const id of currentIds) if (!prevNodeIdsRef.current.has(id)) {
-                        // DEBUG
-                        console.log("Expanding new node:", id);
-                        next.add(id);
+                let newestId: string | null = null;
+
+                if (autoExpandNew && prevNodeIdsRef.current) {
+                    const prevIds = prevNodeIdsRef.current;
+                    const parent = buildParentMap(paramEdges);
+
+                    // gather the new ids
+                    const newIds: string[] = [];
+                    currentIds.forEach(id => { if (!prevIds.has(id)) newIds.push(id); });
+
+                    if (newIds.length) {
+                        // expand each new node + its ancestors
+                        newIds.forEach(id => {
+                            let cur: string | undefined = id;
+                            while (cur && !next.has(cur)) {
+                                next.add(cur);
+                                cur = parent.get(cur);
+                            }
+                        });
+
+                        // choose the "most recent" as the last in paramNodes
+                        const index = new Map(paramNodes.map((n, i) => [n.id, i]));
+                        newIds.sort((a, b) => (index.get(a)! - index.get(b)!));
+                        newestId = newIds[newIds.length - 1];
                     }
                 }
-                prevNodeIdsRef.current = new Set(paramNodes.map(n => n.id));
+
+                // snapshot after computing next
+                prevNodeIdsRef.current = currentIds;
+
+                // Update the highlight *after* we finish setExpandedNodes
+                if (newestId !== null) {
+                    // schedule on next tick to avoid setState-in-setState warnings in strict mode
+                    setLastAddedNodeIds(new Set<string>([newestId]));
+                }
+
                 return next;
             });
-        }, [paramNodes]);
+        }, [paramNodes, paramEdges]);
 
-        useEffect(() => {
+        useLayoutEffect(() => {
+            if (!prevNodeIdsRef.current) {
+                prevNodeIdsRef.current = new Set(paramNodes.map(n => n.id));
+                return; // baseline only; don't auto-expand on the initial mount
+            }
             reconcileExpanded(automaticExpanding);
-            fitView();
-        }, [paramNodes, automaticExpanding]);
+        }, [paramNodes, paramEdges, automaticExpanding, reconcileExpanded]);
 
         function onChangeListener(event: React.ChangeEvent<HTMLInputElement>) {
             const value = parseInt(event.target.value, 10);
@@ -374,12 +403,6 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
 
         function checkSameIndex(parse_step_info: ParseStepInfo, index: number): boolean {
             return parse_step_info.chosen_transition_index === index+1;
-        }
-
-        function fitView() {
-            if (rfInstance.current) {
-                rfInstance.current.fitView();
-            }
         }
 
         return (

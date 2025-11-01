@@ -33,13 +33,11 @@ const ParseTreeNodeComponent = ({
       : "";
 
     return <div 
-      className={`w-full h-full flex flex-col font-black text-white justify-center ${background}`}
+      className={`w-full h-full flex flex-col font-black text-white justify-center ${background} ${data.isLastAdded ? 'ring-2 ring-amber-300 rounded shadow-xl shadow-amber-500/20' : '' }`}
       onClick={() => data.hasChildren && data.toggleNode && data.toggleNode(id)}
     >
         <span>
           {data.ruleName || data.token} {expandIndicator}
-            <br/>
-            {id}
         </span>
     </div>
   }
