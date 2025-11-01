@@ -603,10 +603,24 @@ function App() {
                                             </span>
                                         </div>
 
-                                        {/* Snippet box — edge-to-edge */}
+                                        {/* Snippet box */}
                                         <div
                                             className="flex-1 flex items-center justify-center font-mono bg-violet-500 text-2xl text-gray-100 h-full">
-                                            {parseStepInfo?.input_context_snippet ? parseStepInfo.input_context_snippet : ""}
+                                            {parseStepInfo?.lookahead_repr && (() => {
+                                                const la = parseStepInfo!.lookahead_repr;
+                                                // Passe diese Funktion an, um das Opazitätsverhalten zu ändern.
+                                                const opacityFn = (i: number) => Math.max(0, 1 - 0.3 * i); // 0 -> 1, 1 -> 0.7, 2 -> 0.4
+
+                                                return (
+                                                    <>
+                                                        {la.map((entry, idx) => (
+                                                            <span key={idx} className={"mr-3"} style={{ opacity: opacityFn(idx) }}>
+                                                                {entry}{idx < la.length-1 ? ',' : ''}
+                                                            </span>
+                                                        ))}
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
 
                                     </div>

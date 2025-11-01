@@ -46,7 +46,7 @@ export interface ParseStepInfo {
   token_index: number;
   chosen_transition_index: number;
   input_text_context: string;
-  lookahead_repr: string;
+  lookahead_repr: string[];
   matching_error: boolean;
   is_error_node: boolean;
   next_input_token: string | null;

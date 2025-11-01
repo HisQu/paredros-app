@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState, forwardRef, useImperativeHandle} from "react";
+import {useCallback, useEffect, useState, forwardRef, useImperativeHandle, useRef} from "react";
 // React Flow
 import {
     ReactFlow,
@@ -26,7 +26,25 @@ import {Badge} from "./ui/badge.tsx";
 import {Checkbox, CheckboxField, CheckboxGroup} from "./ui/checkbox.tsx";
 import {ParseStepInfo} from "../interfaces/UserGrammar.ts";
 
+type FlowProps = {
+    node: ParseTreeNode[];
+    edge: Edge[];
+    step_forwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
+    step_backwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
+    step_to_last_decision: (event: React.MouseEvent<HTMLButtonElement>) => void;
+    step_to_next_decision: (event: React.MouseEvent<HTMLButtonElement>) => void;
+    current_step?: string;
+    step_action: (step_id: number) => void;
+    next_parse_step_info: ParseStepInfo | undefined;
+};
+
+export type FlowHandle = {
+    expandAll: () => void;
+};
+
 const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+
+type LayoutDirection = "LR" | "TB";
 
 // Helper function to build a node tree map for easy access
 const buildNodeTreeMap = (nodes: ParseTreeNode[], edges: Edge[]) => {
@@ -103,7 +121,7 @@ const getLayoutedElements = (
     edges: Edge[],
     expandedNodes: Set<string>,
     onToggleNode: (nodeId: string) => void,
-    direction = "TB"
+    _direction: LayoutDirection = "TB"
 ) => {
     // Filter visible edges to only those connecting visible nodes
     const visibleNodes = getVisibleNodes(nodes, edges, expandedNodes);
@@ -113,8 +131,8 @@ const getLayoutedElements = (
         edge => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
     );
 
-    const isHorizontal = direction === "LR";
-    dagreGraph.setGraph({rankdir: direction});
+    const isHorizontal = _direction === "LR";
+    dagreGraph.setGraph({rankdir: _direction});
 
     visibleNodes.forEach((node) => {
         dagreGraph.setNode(node.id, {width: nodeWidth, height: nodeHeight});
@@ -155,22 +173,6 @@ const getLayoutedElements = (
     return {nodes: newNodes, edges: newEdges};
 };
 
-type FlowProps = {
-    node: ParseTreeNode[];
-    edge: Edge[];
-    step_forwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
-    step_backwards: (event: React.MouseEvent<HTMLButtonElement>) => void;
-    step_to_last_decision: (event: React.MouseEvent<HTMLButtonElement>) => void;
-    step_to_next_decision: (event: React.MouseEvent<HTMLButtonElement>) => void;
-    current_step?: string;
-    step_action: (step_id: number) => void;
-    next_parse_step_info: ParseStepInfo | undefined;
-};
-
-export type FlowHandle = {
-    expandAll: () => void;
-};
-
 const Flow = forwardRef<FlowHandle, FlowProps>(
     ({node: paramNodes, edge: paramEdges, step_backwards, step_forwards, step_to_last_decision, step_to_next_decision, current_step, step_action, next_parse_step_info}, ref) => {
         const rfInstance = useRef<any | null>(null); // not pretty, but typing did not work
@@ -185,6 +187,9 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
 
         // Ref to store initial positions of nodes when dragging starts.
         const dragStartPositionsRef = useRef<Map<string, { x: number, y: number }>>(new Map());
+
+        // Layout direction state
+        const [direction, setDirection] = useState<LayoutDirection>("TB");
 
         // Toggle function to expand/collapse individual nodes
         const onToggleNode = useCallback((nodeId: string) => {
@@ -228,15 +233,7 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
 
         // Update layout when the input nodes, edges, or expanded state changes
         useEffect(() => {
-            const {nodes: newLayoutNodes, edges: newLayoutEdges} = getLayoutedElements(
-                paramNodes,
-                paramEdges,
-                expandedNodes,
-                onToggleNode
-            );
-
-            setNodes(newLayoutNodes);
-            setEdges(newLayoutEdges);
+            onLayout();
         }, [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges]);
 
         const onConnect = useCallback(
@@ -248,17 +245,21 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
         );
 
         const onLayout = useCallback(
-            (direction: any) => {
+            (_direction?: LayoutDirection) => {
+                setDirection(_direction || direction);
+
                 const {nodes: layoutedNodes, edges: layoutedEdges} = getLayoutedElements(
                     paramNodes,
                     paramEdges,
                     expandedNodes,
                     onToggleNode,
-                    direction
+                    _direction || direction
                 );
 
                 setNodes([...layoutedNodes]);
                 setEdges([...layoutedEdges]);
+
+                fitView();
             },
             [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges]
         );
@@ -344,22 +345,21 @@ const Flow = forwardRef<FlowHandle, FlowProps>(
             return parse_step_info.chosen_transition_index === index+1;
         }
 
-        const automaticExpandingWrapper = () => {
-            if (automaticExpanding) {
-                expand_all();
-            }
+        function fitView() {
             if (rfInstance.current) {
-                // DEBUG
-                console.log("Fit View")
                 rfInstance.current.fitView();
             }
         }
 
+        const automaticExpandingWrapper = () => {
+            if (automaticExpanding) {
+                expand_all();
+            }
+            fitView();
+        }
+
         // when the input nodes change, run several actions
         useEffect(() => {
-
-            // DEBUG
-            console.log("automatic expanding wrapper")
             automaticExpandingWrapper();
         }, [paramNodes]);
 
