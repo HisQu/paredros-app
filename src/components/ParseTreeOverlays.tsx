@@ -9,6 +9,13 @@ interface OverlayProps {
 const BigLoadGrammarOverlay: React.FC<OverlayProps> = ({onClick}) => {
     return (
         <div className="flex flex-col flex-1 items-center justify-center text-center p-6">
+            <img
+                className="h-22"
+                src="/paredros_wordmark.png"
+                alt="Paredros"
+                style={{marginRight: '1px'}}
+            />
+
             <svg
                 fill="none"
                 stroke="currentColor"
@@ -34,7 +41,7 @@ const BigLoadGrammarOverlay: React.FC<OverlayProps> = ({onClick}) => {
             </p>
 
             <div className="mt-6">
-                <Button onClick={onClick} color="lime">
+                <Button onClick={onClick} color={"lime"}>
                     <FolderOpenIcon aria-hidden="true" className="mr-2 size-5" />
                     Open Grammar file
                 </Button>
