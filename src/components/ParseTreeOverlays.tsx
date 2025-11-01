@@ -52,7 +52,7 @@ const BigLoadGrammarOverlay: React.FC<OverlayProps> = ({onClick}) => {
 
 const ParserInputOverlay: React.FC<OverlayProps> = ({onClick}) => {
     return (
-        <div className="text-center text-xl bg-orange-100 h-full p-4">
+        <div className="text-center text-xl bg-green-100 h-full p-4">
             <button
                 type="button"
                 onClick={onClick}
