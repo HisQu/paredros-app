@@ -579,7 +579,7 @@ function App() {
                                     <div className="flex items-center gap-4 h-full">
 
                                         {/* Left content (logos + subtitle) */}
-                                        <div className="flex items-center gap-4 pl-4">
+                                        <div className="flex items-center pl-4">
                                             <div className="flex items-center">
                                                 <img
                                                     className="h-22"
@@ -637,6 +637,7 @@ function App() {
                                                 step_to_next_decision={stepToNextDecision}
                                                 current_step={parseStepInfo?.step_id}
                                                 step_action={go_to_step}
+                                                generate_parser={generate_parser_save_grammar_files_parse_input}
                                                 next_parse_step_info={nextInfo}
                                             />
                                         )
