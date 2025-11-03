@@ -42,6 +42,7 @@ type FlowProps = {
     step_to_next_decision: (event: React.MouseEvent<HTMLButtonElement>) => void;
     current_step?: string;
     step_action: (step_id: number) => void;
+    generate_parser: () => Promise<void>;
     next_parse_step_info: ParseStepInfo | undefined;
 };
 
@@ -179,7 +180,18 @@ const getLayoutedElements = (
     return {nodes: newNodes, edges: newEdges};
 };
 
-const Flow = ({node: paramNodes, edge: paramEdges, step_backwards, step_forwards, step_to_last_decision, step_to_next_decision, current_step, step_action, next_parse_step_info}: FlowProps) => {
+const Flow = ({
+                  node: paramNodes,
+                  edge: paramEdges,
+                  step_backwards,
+                  step_forwards,
+                  step_to_last_decision,
+                  step_to_next_decision,
+                  current_step,
+                  step_action,
+                  generate_parser,
+                  next_parse_step_info
+}: FlowProps) => {
     const rfInstance = useRef<any | null>(null); // not pretty, but typing did not work
 
     // Track expanded nodes in a Set, with root nodes expanded by default
@@ -446,6 +458,7 @@ const Flow = ({node: paramNodes, edge: paramEdges, step_backwards, step_forwards
                         <span data-slot="label">Auto-expand newly added nodes</span>
                     </CheckboxField>
                 </CheckboxGroup>
+                <Button color="fuchsia" onClick={generate_parser}>Regenerate Parser</Button>
             </Panel>
             <Panel position="top-left">
                 <h3 className="text-lg font-semibold mb-2 text-gray-700">Rule Stack</h3>
