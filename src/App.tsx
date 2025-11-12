@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from "react";
 // Tauri
 import {invoke} from "@tauri-apps/api/core";
 import {open} from '@tauri-apps/plugin-dialog';
-import {BaseDirectory, writeTextFile} from '@tauri-apps/plugin-fs';
+import {BaseDirectory, writeTextFile, readTextFile} from '@tauri-apps/plugin-fs';
 // UI Components
 import './App.css';
 import Flow from "./components/FlowPlot.tsx";
@@ -38,6 +38,7 @@ import {
     ExpressionChangedOverlay
 } from "./components/ParseTreeOverlays.tsx";
 import {Button} from "./components/ui/button.tsx";
+import {Select} from "./components/ui/select.tsx";
 
 
 // END IMPORTS and constants
@@ -146,6 +147,49 @@ function App() {
             resetStateVariables();
 
             setGrammarFileLocation(file);
+            
+            // Try to load input.txt from the same directory
+            await tryLoadInputFromGrammarDirectory(file);
+        }
+    }
+
+    async function tryLoadInputFromGrammarDirectory(grammarPath: string) {
+        try {
+            // Extract directory from grammar file path
+            const lastSlash = Math.max(grammarPath.lastIndexOf('/'), grammarPath.lastIndexOf('\\'));
+            if (lastSlash === -1) return;
+            
+            const directory = grammarPath.substring(0, lastSlash);
+            const inputPath = `${directory}/input.txt`;
+            
+            // Try to read the input.txt file
+            const content = await readTextFile(inputPath);
+            setExpressionContent(content);
+            console.log("Loaded input.txt from grammar directory");
+        } catch (error) {
+            // File doesn't exist or couldn't be read - that's fine, just continue
+            console.log("No input.txt found in grammar directory (this is optional)");
+        }
+    }
+
+    async function load_input_file() {
+        // DEBUG
+        console.log("load_input_file")
+
+        const file = await open({
+            multiple: false,
+            directory: false,
+        });
+
+        if (file) {
+            try {
+                const content = await readTextFile(file);
+                setExpressionContent(content);
+                setExpressionChanged(true);
+                console.log("Loaded input file:", file);
+            } catch (error) {
+                console.error("Failed to load input file:", error);
+            }
         }
     }
 
@@ -164,6 +208,8 @@ function App() {
 
     // expression editor content
     const [expressionContent, setExpressionContent] = useState(sampleInputText);
+    // expression editor language
+    const [expressionLanguage, setExpressionLanguage] = useState<string>("xml");
 
     // grammar editor content
     const [editorContent, setEditorContent] = useState<string>("");
@@ -724,16 +770,44 @@ function App() {
                                     ) : (<LoadGrammarOverlay onClick={load_grammar_file}/>)}
                                 </Allotment.Pane>
                                 <Allotment.Pane minSize={200} className="h-md bg-violet-500">
-                                    <div className="p-2 border-b border-zinc-200">
+                                    <div className="p-2 border-b border-zinc-200 flex justify-between items-center">
                                         <h2 className="text-2xl text-white">Expression</h2>
+                                        <div className="flex gap-2 items-center">
+                                            <Button 
+                                                color="violet" 
+                                                onClick={load_input_file}
+                                                className="text-sm"
+                                            >
+                                                Load Input File
+                                            </Button>
+                                            <Select 
+                                                value={expressionLanguage}
+                                                onChange={(e) => setExpressionLanguage(e.target.value)}
+                                                className="text-sm"
+                                            >
+                                                <option value="plaintext">Plain Text</option>
+                                                <option value="xml">XML</option>
+                                                <option value="json">JSON</option>
+                                                <option value="javascript">JavaScript</option>
+                                                <option value="typescript">TypeScript</option>
+                                                <option value="python">Python</option>
+                                                <option value="java">Java</option>
+                                                <option value="cpp">C++</option>
+                                                <option value="csharp">C#</option>
+                                                <option value="html">HTML</option>
+                                                <option value="css">CSS</option>
+                                                <option value="sql">SQL</option>
+                                                <option value="markdown">Markdown</option>
+                                            </Select>
+                                        </div>
                                     </div>
                                     {/* Expression Editor */}
                                     <Editor className="w-full h-full"
-                                            defaultLanguage="xml"
+                                            language={expressionLanguage}
                                             options={{
                                                 wordWrap: "on",
                                             }}
-                                            defaultValue={sampleInputText}
+                                            value={expressionContent}
                                             onMount={handleExpressionEditorDidMount}
                                             onChange={handleExpressionChange}/>
                                 </Allotment.Pane>
