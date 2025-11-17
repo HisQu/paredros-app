@@ -39,6 +39,7 @@ import {
 } from "./components/ParseTreeOverlays.tsx";
 import {Button} from "./components/ui/button.tsx";
 import {Select} from "./components/ui/select.tsx";
+import LoadingOverlay from "./components/LoadingOverlay.tsx";
 
 
 // END IMPORTS and constants
@@ -209,6 +210,8 @@ function App() {
     const [lexemes, setLexemes] = useState<TokenInfo[]>();
     // user interface state
     const [followParser, setFollowParser] = useState<boolean>(false); // default: user controls file switching
+    const [isGeneratingParser, setIsGeneratingParser] = useState<boolean>(false);
+    const [isParsingExpression, setIsParsingExpression] = useState<boolean>(false);
 
     // expression editor content
     const [expressionContent, setExpressionContent] = useState<string>("");
@@ -258,9 +261,14 @@ function App() {
         // DEBUG
         console.log("generate_parser");
 
-        setGenerateParserResult(await invoke("generate_parser", {
-            id: parseInfo
-        }));
+        setIsGeneratingParser(true);
+        try {
+            setGenerateParserResult(await invoke("generate_parser", {
+                id: parseInfo
+            }));
+        } finally {
+            setIsGeneratingParser(false);
+        }
     }
 
     async function go_to_step(step_id: number) {
@@ -279,20 +287,25 @@ function App() {
 
     async function parse_input() {
         // call parse input
-        const parse_input_result = await invoke("parse_input", {
-            id: parseInfo,
-            input: expressionContent
-        });
+        setIsParsingExpression(true);
+        try {
+            const parse_input_result = await invoke("parse_input", {
+                id: parseInfo,
+                input: expressionContent
+            });
 
-        console.log("Expression parsed:", expressionContent);
+            console.log("Expression parsed:", expressionContent);
 
-        // DEBUG
-        console.log("parse_input_result", parse_input_result);
+            // DEBUG
+            console.log("parse_input_result", parse_input_result);
 
-        if (parse_input_result === "Parsed successfully") {
-            setExpressionChanged(false);
-            await get_json_parse_tree();
-            await get_lexemes();
+            if (parse_input_result === "Parsed successfully") {
+                setExpressionChanged(false);
+                await get_json_parse_tree();
+                await get_lexemes();
+            }
+        } finally {
+            setIsParsingExpression(false);
         }
     }
 
@@ -669,7 +682,11 @@ function App() {
 
 
                                 <div className="flex-1 min-h-0">
-                                    {nodes && edges ? (
+                                    {isGeneratingParser ? (
+                                        <LoadingOverlay message="Generating parser..." />
+                                    ) : isParsingExpression ? (
+                                        <LoadingOverlay message="Parsing expression..." />
+                                    ) : nodes && edges ? (
                                         hasChangedGrammarFile(userGrammar) || expressionChanged ? (
                                             hasChangedGrammarFile(userGrammar) ? (
                                                 <ParserInputOverlay onClick={generate_parser_save_grammar_files_parse_input} />
