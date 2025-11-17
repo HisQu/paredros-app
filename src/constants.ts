@@ -5,8 +5,6 @@ import {
 
 import type { languages } from "monaco-editor";
 
-const sampleInputText = ``;
-
 const antlr4MonarchLanguage: languages.IMonarchLanguage = {
   // Default token and file extension postfix
   defaultToken: '',
@@ -134,4 +132,4 @@ const nodeHeight = 36;
 
 const tempFileName = "temporaryParedrosInput.txt";
 
-export { tempFileName, nodeWidth, nodeHeight, initialNodes, initialEdges, sampleInputText, antlr4MonarchLanguage }
+export { tempFileName, nodeWidth, nodeHeight, initialNodes, initialEdges, antlr4MonarchLanguage }
