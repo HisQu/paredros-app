@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from "react";
 // Tauri
 import {invoke} from "@tauri-apps/api/core";
 import {open} from '@tauri-apps/plugin-dialog';
-import {BaseDirectory, writeTextFile, readTextFile} from '@tauri-apps/plugin-fs';
+import {writeTextFile, readTextFile} from '@tauri-apps/plugin-fs';
 // UI Components
 import './App.css';
 import Flow from "./components/FlowPlot.tsx";
@@ -13,7 +13,7 @@ import {GrammarRuleLocation, ParseStepInfo, TokenInfo, UserGrammar} from "./inte
 import {ParseTreeNode} from "./interfaces/ParseTreeNode.ts";
 import type {PySetupProgressType} from "./interfaces/PySetupProgressType.ts"
 // Mockup/Helper values
-import {antlr4MonarchLanguage, sampleInputText, tempFileName} from "./constants";
+import {antlr4MonarchLanguage} from "./constants";
 // Code Editor
 import Editor, {OnMount} from '@monaco-editor/react';
 import {editor} from "monaco-editor";
@@ -165,6 +165,8 @@ function App() {
             // Try to read the input.txt file
             const content = await readTextFile(inputPath);
             setExpressionContent(content);
+            expressionEditorRef?.current?.setValue(content);
+
             console.log("Loaded input.txt from grammar directory");
         } catch (error) {
             // File doesn't exist or couldn't be read - that's fine, just continue
@@ -186,6 +188,8 @@ function App() {
                 const content = await readTextFile(file);
                 setExpressionContent(content);
                 setExpressionChanged(true);
+                expressionEditorRef?.current?.setValue(content);
+
                 console.log("Loaded input file:", file);
             } catch (error) {
                 console.error("Failed to load input file:", error);
@@ -207,7 +211,7 @@ function App() {
     const [followParser, setFollowParser] = useState<boolean>(false); // default: user controls file switching
 
     // expression editor content
-    const [expressionContent, setExpressionContent] = useState(sampleInputText);
+    const [expressionContent, setExpressionContent] = useState<string>("");
     // expression editor language
     const [expressionLanguage, setExpressionLanguage] = useState<string>("xml");
 
@@ -274,14 +278,13 @@ function App() {
     }
 
     async function parse_input() {
-        // save the file to the temporary location
-        await writeTextFile(tempFileName, expressionContent, {baseDir: BaseDirectory.Temp});
-
         // call parse input
         const parse_input_result = await invoke("parse_input", {
             id: parseInfo,
             input: expressionContent
         });
+
+        console.log("Expression parsed:", expressionContent);
 
         // DEBUG
         console.log("parse_input_result", parse_input_result);
