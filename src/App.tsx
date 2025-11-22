@@ -656,27 +656,6 @@ function App() {
                                                 Grammar debugging environment
                                             </span>
                                         </div>
-
-                                        {/* Snippet box */}
-                                        <div
-                                            className="flex-1 flex gap-10 items-center justify-center font-mono bg-violet-500 text-gray-100 h-full">
-                                            {nextInfo?.lookahead_repr && (() => {
-                                                const la = nextInfo!.lookahead_repr;
-                                                // Passe diese Funktion an, um das Opazitätsverhalten zu ändern.
-                                                const opacityFn = (i: number) => Math.max(0, 1 - 0.3 * i); // 0 -> 1, 1 -> 0.7, 2 -> 0.4
-
-                                                return (
-                                                    <>
-                                                        {la.map((entry, idx) => (
-                                                            <span key={idx} style={{ opacity: opacityFn(idx) }} className="inline-flex items-center rounded-md bg-violet-400/40 px-2 py-1 text-2xl font-medium text-white inset-ring">
-                                                                {idx}{'. '}{entry}
-                                                            </span>
-                                                        ))}
-                                                    </>
-                                                );
-                                            })()}
-                                        </div>
-
                                     </div>
                                 </header>
 
