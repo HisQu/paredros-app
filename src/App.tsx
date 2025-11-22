@@ -3,11 +3,24 @@ import {useEffect, useRef, useState} from "react";
 import {invoke} from "@tauri-apps/api/core";
 import {open} from '@tauri-apps/plugin-dialog';
 import {writeTextFile, readTextFile} from '@tauri-apps/plugin-fs';
+import {dirname, join} from '@tauri-apps/api/path';
 // UI Components
 import './App.css';
 import Flow from "./components/FlowPlot.tsx";
 import UnhandledRejectionDialog from "./components/UnhandledRejectionDialog.tsx";
 import PythonSetupComponent from "./components/PythonSetupComponent.tsx";
+import {Button} from "./components/ui/button.tsx";
+import {Select} from "./components/ui/select.tsx";
+import LoadingOverlay from "./components/LoadingOverlay.tsx";
+import {FolderOpenIcon} from "@heroicons/react/24/outline";
+import {
+    GenerateParserOverlay,
+    LoadGrammarOverlay,
+    BigLoadGrammarOverlay,
+    ParserInputOverlay,
+    ParseExpressionOverlay,
+    ExpressionChangedOverlay
+} from "./components/ParseTreeOverlays.tsx";
 // Interfaces
 import {GrammarRuleLocation, ParseStepInfo, TokenInfo, UserGrammar} from "./interfaces/UserGrammar.ts";
 import {ParseTreeNode} from "./interfaces/ParseTreeNode.ts";
@@ -29,17 +42,6 @@ import {buildItemsFromUserGrammar} from "./grammarHelpers.ts";
 import {transformJsonToParseTree} from "./parseTreeHelpers.ts";
 // ReactFlow Nodes
 import {Edge} from '@xyflow/react';
-import {
-    GenerateParserOverlay,
-    LoadGrammarOverlay,
-    BigLoadGrammarOverlay,
-    ParserInputOverlay,
-    ParseExpressionOverlay,
-    ExpressionChangedOverlay
-} from "./components/ParseTreeOverlays.tsx";
-import {Button} from "./components/ui/button.tsx";
-import {Select} from "./components/ui/select.tsx";
-import LoadingOverlay from "./components/LoadingOverlay.tsx";
 
 
 // END IMPORTS and constants
@@ -156,12 +158,12 @@ function App() {
 
     async function tryLoadInputFromGrammarDirectory(grammarPath: string) {
         try {
-            // Extract directory from grammar file path
-            const lastSlash = Math.max(grammarPath.lastIndexOf('/'), grammarPath.lastIndexOf('\\'));
-            if (lastSlash === -1) return;
-            
-            const directory = grammarPath.substring(0, lastSlash);
-            const inputPath = `${directory}/input.txt`;
+            // Extract directory
+            const directory = await dirname(grammarPath);
+            const inputPath = await join(directory, 'input.txt');
+
+            // DEBUG
+            console.log("Looking for input file at path:" + inputPath);
             
             // Try to read the input.txt file
             const content = await readTextFile(inputPath);
