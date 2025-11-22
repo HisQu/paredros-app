@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from "react";
 // Tauri
 import {invoke} from "@tauri-apps/api/core";
 import {open} from '@tauri-apps/plugin-dialog';
-import {writeTextFile, readTextFile} from '@tauri-apps/plugin-fs';
+import {writeTextFile, readTextFile, readDir} from '@tauri-apps/plugin-fs';
 import {dirname, join} from '@tauri-apps/api/path';
 // UI Components
 import './App.css';
@@ -19,7 +19,8 @@ import {
     BigLoadGrammarOverlay,
     ParserInputOverlay,
     ParseExpressionOverlay,
-    ExpressionChangedOverlay
+    ExpressionChangedOverlay,
+    SelectGrammarFileOverlay
 } from "./components/ParseTreeOverlays.tsx";
 // Interfaces
 import {GrammarRuleLocation, ParseStepInfo, TokenInfo, UserGrammar} from "./interfaces/UserGrammar.ts";
@@ -101,6 +102,8 @@ function App() {
     };
 
     const [grammarFileLocation, setGrammarFileLocation] = useState("");
+    const [grammarDirectory, setGrammarDirectory] = useState<string>("");
+    const [availableGrammarFiles, setAvailableGrammarFiles] = useState<string[]>([]);
 
     /** How variables "flow"
      *
@@ -136,28 +139,53 @@ function App() {
 
     async function load_grammar_file() {
         // DEBUG
-        console.log("load_grammar_file")
+        console.log("load_grammar_file - opening directory dialog")
 
-        const file = await open({
+        const directory = await open({
             multiple: false,
-            directory: false,
-            filters: [{
-                name: 'ANTLR Grammar',
-                extensions: ['g4']
-            }]
+            directory: true,
+            title: "Select Grammar Directory"
         });
 
-        if (file) {
+        if (directory && typeof directory === 'string') {
             // DEBUG
-            console.log("set new grammar file", file);
+            console.log("Selected directory:", directory);
+            
             // Reset all state values which hold parse tree information, parseInformation instance id, etc.
             resetStateVariables();
 
-            setGrammarFileLocation(file);
+            // Set the grammar directory
+            setGrammarDirectory(directory);
             
-            // Try to load input.txt from the same directory
-            await tryLoadInputFromGrammarDirectory(file);
+            // Read all .g4 files from the directory
+            try {
+                const entries = await readDir(directory);
+                const g4Files = entries
+                    .filter(entry => entry.isFile && entry.name.endsWith('.g4'))
+                    .map(entry => entry.name);
+                
+                console.log("Found .g4 files:", g4Files);
+                setAvailableGrammarFiles(g4Files);
+                
+                // If there's only one .g4 file, select it automatically
+                if (g4Files.length === 1) {
+                    await selectMainGrammarFile(directory, g4Files[0]);
+                }
+            } catch (error) {
+                console.error("Failed to read directory:", error);
+            }
         }
+    }
+
+    async function selectMainGrammarFile(directory: string, fileName: string) {
+        const fullPath = await join(directory, fileName);
+        console.log("Selected main grammar file:", fullPath);
+        
+        setGrammarFileLocation(fullPath);
+        setAvailableGrammarFiles([]);  // Clear the file list after selection
+        
+        // Try to load input.txt from the same directory
+        await tryLoadInputFromGrammarDirectory(fullPath);
     }
 
     async function tryLoadInputFromGrammarDirectory(grammarPath: string) {
@@ -772,7 +800,14 @@ function App() {
                                                 />
                                             </div>
                                         </div>
-                                    ) : (<LoadGrammarOverlay onClick={load_grammar_file}/>)}
+                                    ) : availableGrammarFiles.length > 0 ? (
+                                        <SelectGrammarFileOverlay 
+                                            files={availableGrammarFiles}
+                                            onSelect={(fileName) => selectMainGrammarFile(grammarDirectory, fileName)}
+                                        />
+                                    ) : (
+                                        <LoadGrammarOverlay onClick={load_grammar_file}/>
+                                    )}
                                 </Allotment.Pane>
                                 <Allotment.Pane minSize={200} className="h-md bg-violet-500">
                                     <div className="p-2 border-b border-zinc-200 flex justify-between items-center">

@@ -33,17 +33,17 @@ const BigLoadGrammarOverlay: React.FC<OverlayProps> = ({onClick}) => {
             </svg>
 
             <h3 className="mt-4 text-sm font-semibold text-gray-900">
-                Open a Grammar file
+                Open a Grammar Directory
             </h3>
 
             <p className="mt-1 text-sm text-gray-500">
-                Get started by loading a grammar.
+                Get started by selecting a directory containing your grammar files.
             </p>
 
             <div className="mt-6">
                 <Button onClick={onClick} color={"lime"}>
                     <FolderOpenIcon aria-hidden="true" className="mr-2 size-5" />
-                    Open Grammar file
+                    Open Grammar Directory
                 </Button>
             </div>
         </div>
@@ -125,10 +125,41 @@ const LoadGrammarOverlay: React.FC<OverlayProps> = ({onClick}) => {
                 className="relative block w-full rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-gray-400 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-hidden"
             >
                 <FolderOpenIcon className="mx-auto size-12"/>
-                <span className="mt-2 block text-sm font-semibold text-gray-900">Load a grammar file</span>
+                <span className="mt-2 block text-sm font-semibold text-gray-900">Load a grammar directory</span>
             </button>
         </div>
     )
 }
 
-export {BigLoadGrammarOverlay, ParserInputOverlay, ParseExpressionOverlay, GenerateParserOverlay, LoadGrammarOverlay, ExpressionChangedOverlay};
+interface SelectGrammarFileProps {
+    files: string[];
+    onSelect: (fileName: string) => void;
+}
+
+const SelectGrammarFileOverlay: React.FC<SelectGrammarFileProps> = ({files, onSelect}) => {
+    return (
+        <div className="flex flex-col items-center justify-center h-full bg-blue-100 p-8">
+            <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Select Main Grammar File
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                    Multiple grammar files found. Please select the main grammar file:
+                </p>
+                <div className="space-y-2">
+                    {files.map((file) => (
+                        <button
+                            key={file}
+                            onClick={() => onSelect(file)}
+                            className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-md border border-blue-200 transition-colors"
+                        >
+                            <span className="font-medium text-gray-900">{file}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export {BigLoadGrammarOverlay, ParserInputOverlay, ParseExpressionOverlay, GenerateParserOverlay, LoadGrammarOverlay, ExpressionChangedOverlay, SelectGrammarFileOverlay};
