@@ -141,6 +141,10 @@ function App() {
         const file = await open({
             multiple: false,
             directory: false,
+            filters: [{
+                name: 'ANTLR Grammar',
+                extensions: ['g4']
+            }]
         });
 
         if (file) {
@@ -639,7 +643,7 @@ function App() {
                         <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
                             <div className="flex flex-col h-full min-h-0">
                                 {/* Header */}
-                                <header className="shrink-0 pr-0 border-b border-zinc-200 h-24">
+                                <header className="shrink-0 pr-0 border-b border-zinc-200 h-16">
                                     <div className="flex items-center gap-4 h-full">
 
                                         {/* Left content (logos + subtitle) */}
@@ -779,7 +783,7 @@ function App() {
                                                 onClick={load_input_file}
                                                 className="text-sm"
                                             >
-                                                Load Input File
+                                                <FolderOpenIcon className="w-4 h-4 mr-1 inline-block"/>
                                             </Button>
                                             <Select 
                                                 value={expressionLanguage}
@@ -789,15 +793,7 @@ function App() {
                                                 <option value="plaintext">Plain Text</option>
                                                 <option value="xml">XML</option>
                                                 <option value="json">JSON</option>
-                                                <option value="javascript">JavaScript</option>
-                                                <option value="typescript">TypeScript</option>
-                                                <option value="python">Python</option>
-                                                <option value="java">Java</option>
-                                                <option value="cpp">C++</option>
-                                                <option value="csharp">C#</option>
                                                 <option value="html">HTML</option>
-                                                <option value="css">CSS</option>
-                                                <option value="sql">SQL</option>
                                                 <option value="markdown">Markdown</option>
                                             </Select>
                                         </div>
