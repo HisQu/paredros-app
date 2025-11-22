@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from "react";
 // Tauri
 import {invoke} from "@tauri-apps/api/core";
 import {open} from '@tauri-apps/plugin-dialog';
-import {writeTextFile, readTextFile} from '@tauri-apps/plugin-fs';
+import {writeTextFile, readTextFile, readDir} from '@tauri-apps/plugin-fs';
 import {dirname, join} from '@tauri-apps/api/path';
 // UI Components
 import './App.css';
@@ -19,7 +19,9 @@ import {
     BigLoadGrammarOverlay,
     ParserInputOverlay,
     ParseExpressionOverlay,
-    ExpressionChangedOverlay
+    ExpressionChangedOverlay,
+    SelectGrammarFileOverlay,
+    NoGrammarFilesOverlay
 } from "./components/ParseTreeOverlays.tsx";
 // Interfaces
 import {GrammarRuleLocation, ParseStepInfo, TokenInfo, UserGrammar} from "./interfaces/UserGrammar.ts";
@@ -101,6 +103,9 @@ function App() {
     };
 
     const [grammarFileLocation, setGrammarFileLocation] = useState("");
+    const [grammarDirectory, setGrammarDirectory] = useState<string>("");
+    const [availableGrammarFiles, setAvailableGrammarFiles] = useState<Array<{name: string, isMainFile: boolean}>>([]);
+    const [noGrammarFilesFound, setNoGrammarFilesFound] = useState(false);
 
     /** How variables "flow"
      *
@@ -132,32 +137,103 @@ function App() {
         setEdges(undefined);
         setNodes(undefined);
         setGenerateParserResult(undefined);
+        setNoGrammarFilesFound(false);
     }
 
     async function load_grammar_file() {
         // DEBUG
-        console.log("load_grammar_file")
+        console.log("load_grammar_file - opening directory dialog")
 
-        const file = await open({
+        const directory = await open({
             multiple: false,
-            directory: false,
-            filters: [{
-                name: 'ANTLR Grammar',
-                extensions: ['g4']
-            }]
+            directory: true,
+            title: "Select Grammar Directory"
         });
 
-        if (file) {
+        if (directory && typeof directory === 'string') {
             // DEBUG
-            console.log("set new grammar file", file);
+            console.log("Selected directory:", directory);
+            
             // Reset all state values which hold parse tree information, parseInformation instance id, etc.
             resetStateVariables();
 
-            setGrammarFileLocation(file);
+            // Set the grammar directory
+            setGrammarDirectory(directory);
             
-            // Try to load input.txt from the same directory
-            await tryLoadInputFromGrammarDirectory(file);
+            // Read all .g4 files from the directory
+            try {
+                console.log("Reading directory entries...");
+                const entries = await readDir(directory);
+                console.log("Directory entries:", entries);
+
+                const g4FileNames = entries
+                    .filter(entry => {
+                        console.log("Entry:", entry);
+                        // Check if entry is a file (not a directory) and ends with .g4
+                        return !entry.isDirectory && entry.name.endsWith('.g4');
+                    })
+                    .map(entry => entry.name);
+                
+                console.log("Found .g4 files:", g4FileNames);
+
+                // Check if any .g4 files were found
+                if (g4FileNames.length === 0) {
+                    console.error("No .g4 files found in directory");
+                    setNoGrammarFilesFound(true);
+                    return;
+                }
+
+                // Analyze each file to detect if it's the main file
+                const g4FilesWithMetadata = await Promise.all(
+                    g4FileNames.map(async (fileName) => {
+                        const filePath = await join(directory, fileName);
+                        let isMainFile = false;
+
+                        try {
+                            const content = await readTextFile(filePath);
+                            // Check for "startRule" or "// main file" comment
+                            isMainFile = content.includes('startRule') ||
+                                       content.includes('// main file') ||
+                                       content.includes('//main file');
+                        } catch (error) {
+                            console.error(`Failed to read ${fileName}:`, error);
+                        }
+
+                        return { name: fileName, isMainFile };
+                    })
+                );
+
+                console.log("Files with metadata:", g4FilesWithMetadata);
+                setAvailableGrammarFiles(g4FilesWithMetadata);
+
+                // If there's only one .g4 file, select it automatically
+                if (g4FilesWithMetadata.length === 1) {
+                    console.log("Auto-selecting single grammar file:", g4FilesWithMetadata[0].name);
+                    await selectMainGrammarFile(directory, g4FilesWithMetadata[0].name);
+                } else {
+                    // If one file is marked as main, auto-select it
+                    const mainFile = g4FilesWithMetadata.find(f => f.isMainFile);
+                    if (mainFile) {
+                        console.log("Auto-selecting detected main file:", mainFile.name);
+                        await selectMainGrammarFile(directory, mainFile.name);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to read directory:", error);
+                setNoGrammarFilesFound(true);
+            }
         }
+    }
+
+    async function selectMainGrammarFile(directory: string, fileName: string) {
+        const fullPath = await join(directory, fileName);
+        console.log("Selected main grammar file:", fullPath);
+        
+        setGrammarFileLocation(fullPath);
+        setAvailableGrammarFiles([]);  // Clear the file list after selection
+        
+        // Try to load input.txt from the same directory
+        await tryLoadInputFromGrammarDirectory(fullPath);
     }
 
     async function tryLoadInputFromGrammarDirectory(grammarPath: string) {
@@ -637,7 +713,16 @@ function App() {
             <span className={"bg-blue-300 bg-blue-400 bg-blue-600 bg-violet-300 bg-violet-400 bg-violet-600"}></span>
 
             {pyProgress !== 'Done' ? <PythonSetupComponent pyProgress={pyProgress} setPyProgress={setPyProgress}/> :
-                userGrammar ? <div className="w-screen h-screen">
+                noGrammarFilesFound ? (
+                    <NoGrammarFilesOverlay onClick={load_grammar_file} />
+                ) : availableGrammarFiles.length > 0 ? (
+                    <div className="w-screen h-screen flex items-center justify-center">
+                        <SelectGrammarFileOverlay
+                            files={availableGrammarFiles}
+                            onSelect={(fileName) => selectMainGrammarFile(grammarDirectory, fileName)}
+                        />
+                    </div>
+                ) : userGrammar ? <div className="w-screen h-screen">
                     <Allotment vertical={true}>
                         {/* Augmented Parse Tree (React Flow) */}
                         <Allotment.Pane minSize={100} className="border border-zinc-200 w-full h-64 mb-4">
@@ -772,7 +857,9 @@ function App() {
                                                 />
                                             </div>
                                         </div>
-                                    ) : (<LoadGrammarOverlay onClick={load_grammar_file}/>)}
+                                    ) : (
+                                        <LoadGrammarOverlay onClick={load_grammar_file}/>
+                                    )}
                                 </Allotment.Pane>
                                 <Allotment.Pane minSize={200} className="h-md bg-violet-500">
                                     <div className="p-2 border-b border-zinc-200 flex justify-between items-center">

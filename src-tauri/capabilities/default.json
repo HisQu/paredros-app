@@ -12,8 +12,6 @@
     "fs:allow-create",
     "fs:allow-temp-write",
     "fs:allow-temp-read",
-    "dialog:default",
-    "dialog:default",
-    "dialog:default"
+    "fs:allow-read-dir"
   ]
 }
