@@ -63,6 +63,8 @@ export interface AppState {
     flowLayoutState: {
         flowLayoutDirection: 'TB' | 'LR';
         setFlowLayoutDirection: Dispatch<SetStateAction<'TB' | 'LR'>>;
+        autoCenterActiveNode: boolean;
+        setAutoCenterActiveNode: Dispatch<SetStateAction<boolean>>;
     };
 }
 
@@ -104,6 +106,7 @@ export function useAppState(): AppState {
 
     // Flow layout state
     const [flowLayoutDirection, setFlowLayoutDirection] = useState<'TB' | 'LR'>('TB');
+    const [autoCenterActiveNode, setAutoCenterActiveNode] = useState<boolean>(true);
 
     // Load settings on mount
     useEffect(() => {
@@ -116,6 +119,10 @@ export function useAppState(): AppState {
             const flowLayout = await getSetting('flowLayoutDirection');
             console.log('[AppState] Loaded flowLayoutDirection:', flowLayout);
             setFlowLayoutDirection(flowLayout);
+
+            const autoCenter = await getSetting('autoCenterActiveNode');
+            console.log('[AppState] Loaded autoCenterActiveNode:', autoCenter);
+            setAutoCenterActiveNode(autoCenter);
 
             setSettingsInitialized(true);
             console.log('[AppState] Settings initialized');
@@ -140,6 +147,14 @@ export function useAppState(): AppState {
             setSetting('flowLayoutDirection', flowLayoutDirection);
         }
     }, [flowLayoutDirection, setSetting, settingsInitialized]);
+
+    // Save autoCenterActiveNode setting when it changes (but not on initial load)
+    useEffect(() => {
+        if (settingsInitialized) {
+            console.log('[AppState] Saving autoCenterActiveNode:', autoCenterActiveNode);
+            setSetting('autoCenterActiveNode', autoCenterActiveNode);
+        }
+    }, [autoCenterActiveNode, setSetting, settingsInitialized]);
 
     return {
         pyState: { pyProgress, setPyProgress },
@@ -196,6 +211,8 @@ export function useAppState(): AppState {
         flowLayoutState: {
             flowLayoutDirection,
             setFlowLayoutDirection,
+            autoCenterActiveNode,
+            setAutoCenterActiveNode,
         },
     };
 }
