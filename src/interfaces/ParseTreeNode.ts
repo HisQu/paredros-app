@@ -21,6 +21,8 @@ export interface ParseTreeNodeData extends Record<string, unknown> {
   isExpanded?: boolean;
   toggleNode?: (nodeId: string) => void;
   isLastAdded?: boolean;
+  isPreview?: boolean;
+  isChosenPreview?: boolean;
 }
 
 export interface ParseTreeNode extends Node<ParseTreeNodeData> { }

@@ -22,6 +22,21 @@ const ParseTreeNodeComponent = ({
     };
 
     function NodeContentComponent({data}: { data: ParseTreeNodeData }) {
+        // Handle preview nodes
+        if (data.isPreview) {
+            const previewBackground = data.isChosenPreview ? 'bg-green-500' : 'bg-gray-400';
+            const previewText = data.isChosenPreview ? 'text-white' : 'text-gray-700';
+            const opacity = data.isChosenPreview ? 'opacity-90' : 'opacity-70';
+
+            return <div
+                className={`w-full h-full flex flex-col font-bold justify-center items-center ${previewBackground} ${previewText} ${opacity} border-2 ${data.isChosenPreview ? 'border-green-700' : 'border-gray-500'} border-dashed rounded`}
+            >
+            <span className="text-xs px-1 text-center break-all">
+              {data.token}
+            </span>
+            </div>
+        }
+
         const isRule = !!data.ruleName;
 
         const shade = data.isLastAdded ? '600' : (data.isExpanded ? '400' : '300');

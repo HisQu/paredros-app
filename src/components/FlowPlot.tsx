@@ -32,6 +32,7 @@ import {Input} from "./ui/input.tsx";
 import {Badge} from "./ui/badge.tsx";
 import {Checkbox, CheckboxField, CheckboxGroup} from "./ui/checkbox.tsx";
 import {ParseStepInfo} from "../interfaces/UserGrammar.ts";
+import {ParseOptionsOverlay} from "./ParseOptionsOverlay";
 
 type FlowProps = {
     node: ParseTreeNode[];
@@ -561,6 +562,10 @@ const Flow = ({
                     )}
                 </div>
             </Panel>
+            <ParseOptionsOverlay
+                nextParseStepInfo={next_parse_step_info}
+                lastAddedNodeIds={lastAddedNodeIds}
+            />
             <Controls/>
             <MiniMap/>
             <Background variant={BackgroundVariant.Dots} gap={12} size={1}/>
