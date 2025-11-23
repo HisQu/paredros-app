@@ -1,6 +1,6 @@
 [package]
 name = "paredros-app"
-version = "0.1.0"
+version = "0.1.3"
 description = "A web frontend to the grammar debugging IDE Paredros."
 authors = ["Daniel Motz"]
 edition = "2021"
