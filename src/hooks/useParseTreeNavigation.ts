@@ -41,7 +41,6 @@ export function useParseTreeNavigation(
         await invoke("go_to_step", {
             id: parseState.parseInfo,
             stepId: step_id,
-            step_id: step_id,
         });
 
         await get_json_parse_tree();
