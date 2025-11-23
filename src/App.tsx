@@ -26,7 +26,6 @@ import { useParseTreeNavigation } from "./hooks/useParseTreeNavigation.ts";
 import { useGrammarEditor } from "./hooks/useGrammarEditor.ts";
 import { useExpressionEditor } from "./hooks/useExpressionEditor.ts";
 
-
 function App() {
     // Initialize all state
     const appState = useAppState();

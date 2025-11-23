@@ -5,15 +5,30 @@ import { UserSettings, DEFAULT_USER_SETTINGS } from '../interfaces/UserSettings'
 const STORE_FILE = 'settings.json';
 
 let storeInstance: Store | null = null;
+let storePromise: Promise<Store> | null = null;
 
 /**
  * Get or create the store instance
  */
 async function getStore(): Promise<Store> {
-    if (!storeInstance) {
-        storeInstance = await Store.load(STORE_FILE);
+    if (storeInstance) {
+        return storeInstance;
     }
-    return storeInstance;
+
+    if (!storePromise) {
+        console.log('[Store] Initializing store...');
+        storePromise = Store.load(STORE_FILE).then(store => {
+            console.log('[Store] Store loaded successfully');
+            storeInstance = store;
+            return store;
+        }).catch(error => {
+            console.error('[Store] Failed to load store:', error);
+            storePromise = null;
+            throw error;
+        });
+    }
+
+    return storePromise;
 }
 
 /**
@@ -29,7 +44,14 @@ export function useUserSettings() {
         try {
             const store = await getStore();
             const value = await store.get<UserSettings[K]>(key);
-            return value ?? DEFAULT_USER_SETTINGS[key];
+            console.log(`[Settings] Loading ${String(key)}:`, value);
+
+            if (value === null || value === undefined) {
+                console.log(`[Settings] Using default for ${String(key)}:`, DEFAULT_USER_SETTINGS[key]);
+                return DEFAULT_USER_SETTINGS[key];
+            }
+
+            return value;
         } catch (error) {
             console.error(`Error loading setting ${String(key)}:`, error);
             return DEFAULT_USER_SETTINGS[key];
@@ -45,8 +67,10 @@ export function useUserSettings() {
     ): Promise<void> => {
         try {
             const store = await getStore();
+            console.log(`[Settings] Saving ${String(key)}:`, value);
             await store.set(key, value);
             await store.save();
+            console.log(`[Settings] Successfully saved ${String(key)}`);
         } catch (error) {
             console.error(`Error saving setting ${String(key)}:`, error);
         }

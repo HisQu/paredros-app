@@ -93,6 +93,7 @@ export function useAppState(): AppState {
     const [expressionChanged, setExpressionChanged] = useState<boolean>(false);
     const [expressionLanguage, setExpressionLanguage] = useState<string>("xml");
     const [showTokenLabels, setShowTokenLabels] = useState<boolean>(true);
+    const [settingsInitialized, setSettingsInitialized] = useState<boolean>(false);
 
     // Grammar editor state
     const [editorContent, setEditorContent] = useState<string>("");
@@ -100,16 +101,25 @@ export function useAppState(): AppState {
     // Load settings on mount
     useEffect(() => {
         const loadSettings = async () => {
+            console.log('[AppState] Loading settings...');
             const showLabels = await getSetting('showTokenLabels');
+            console.log('[AppState] Loaded showTokenLabels:', showLabels);
             setShowTokenLabels(showLabels);
+            setSettingsInitialized(true);
+            console.log('[AppState] Settings initialized');
         };
         loadSettings();
     }, [getSetting]);
 
-    // Save showTokenLabels setting when it changes
+    // Save showTokenLabels setting when it changes (but not on initial load)
     useEffect(() => {
-        setSetting('showTokenLabels', showTokenLabels);
-    }, [showTokenLabels, setSetting]);
+        if (settingsInitialized) {
+            console.log('[AppState] Saving showTokenLabels:', showTokenLabels);
+            setSetting('showTokenLabels', showTokenLabels);
+        } else {
+            console.log('[AppState] Skipping save (not initialized yet)');
+        }
+    }, [showTokenLabels, setSetting, settingsInitialized]);
 
     return {
         pyState: { pyProgress, setPyProgress },
