@@ -126,10 +126,19 @@ export function useParserOperations(
         }
     }, [parseState.parseInfo]);
 
-    // useEffect: userGrammar changes -> set active file
+    // useEffect: userGrammar changes -> set active file to main grammar file
     useEffect(() => {
-        if (grammarState.userGrammar) {
-            grammarState.setActiveFileIndex(Object.keys(grammarState.userGrammar.grammar_files)[0]);
+        if (grammarState.userGrammar && grammarState.grammarFileLocation) {
+            const userGrammar = grammarState.userGrammar;
+            const mainGrammarLocation = grammarState.grammarFileLocation;
+
+            // Find the main grammar file by matching the grammarFileLocation
+            const mainFileKey = Object.keys(userGrammar.grammar_files).find(
+                key => userGrammar.grammar_files[key].path === mainGrammarLocation
+            );
+
+            // Set the main grammar file as active, or fall back to the first file
+            grammarState.setActiveFileIndex(mainFileKey || Object.keys(userGrammar.grammar_files)[0]);
         }
     }, [grammarState.userGrammar]);
 
