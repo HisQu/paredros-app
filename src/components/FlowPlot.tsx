@@ -569,6 +569,7 @@ const Flow = ({
             <ParseOptionsOverlay
                 nextParseStepInfo={next_parse_step_info}
                 lastAddedNodeIds={lastAddedNodeIds}
+                currentStep={current_step}
             />
         </ReactFlow>
         </div>

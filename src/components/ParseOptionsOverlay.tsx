@@ -7,11 +7,13 @@ import { nodeWidth, nodeHeight } from '../constants';
 interface ParseOptionsOverlayProps {
     nextParseStepInfo: ParseStepInfo | undefined;
     lastAddedNodeIds: Set<string> | null;
+    currentStep?: string;
 }
 
 export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
     nextParseStepInfo,
-    lastAddedNodeIds
+    lastAddedNodeIds,
+    currentStep
 }) => {
     const reactFlowInstance = useReactFlow();
     const getNodes = reactFlowInstance.getNodes;
@@ -40,17 +42,52 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
 
     const nodes = getNodes() as ParseTreeNode[];
 
-    // Find the current active node
-    let currentNode: ParseTreeNode | undefined = nodes.find(n => n.id === nextParseStepInfo.step_id);
+    // Find the current active node using multiple strategies
+    let currentNode: ParseTreeNode | undefined;
 
-    // Fallback: find by lastAddedNodeIds
+    // Strategy 1: Try to find by currentStep (the actual current parse step)
+    if (currentStep) {
+        currentNode = nodes.find(n =>
+            Array.isArray(n.data.traceSteps) && n.data.traceSteps.some(step => step.id === currentStep)
+        );
+    }
+
+    // Strategy 2: Try to find by step_id from nextParseStepInfo
+    if (!currentNode) {
+        currentNode = nodes.find(n =>
+            Array.isArray(n.data.traceSteps) && n.data.traceSteps.some(step => step.id === nextParseStepInfo.step_id)
+        );
+    }
+
+    // Strategy 3: Try direct ID match with step_id
+    if (!currentNode) {
+        currentNode = nodes.find(n => n.id === nextParseStepInfo.step_id);
+    }
+
+    // Strategy 4: Find the most recent node (last added) - most reliable for new steps
     if (!currentNode && lastAddedNodeIds && lastAddedNodeIds.size > 0) {
         const lastAddedId = Array.from(lastAddedNodeIds)[0];
         currentNode = nodes.find(n => n.id === lastAddedId);
     }
 
+    // Strategy 5: Find the last node in the list (most recently created)
+    if (!currentNode && nodes.length > 0) {
+        currentNode = nodes[nodes.length - 1];
+    }
+
     if (!currentNode) {
-        console.log("ParseOptionsOverlay: No current node found");
+        console.log("ParseOptionsOverlay: No current node found", {
+            currentStep,
+            step_id: nextParseStepInfo.step_id,
+            available_node_ids: nodes.slice(0, 5).map(n => n.id),
+            total_nodes: nodes.length,
+            lastAddedNodeIds: lastAddedNodeIds ? Array.from(lastAddedNodeIds) : null,
+            sample_trace_steps: nodes.slice(0, 3).map(n => ({
+                nodeId: n.id,
+                traceSteps: Array.isArray(n.data.traceSteps) ? n.data.traceSteps.map(s => s.id) : 'not an array',
+                traceStepsType: typeof n.data.traceSteps
+            }))
+        });
         return null;
     }
 
@@ -152,6 +189,10 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
                 const strokeWidth = isChosen ? 3 : 2;
                 const opacity = isChosen ? 0.9 : 0.6;
 
+                // Get current zoom for font scaling
+                const viewport = reactFlowInstance.getViewport();
+                const scaledFontSize = 12 * viewport.zoom;
+
                 if (isExitTransition && isChosen) {
                     // Draw arrow back to parent (or upward)
                     const flowExitTarget = {
@@ -184,7 +225,7 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
                                 x={screenExitTarget.x + 20}
                                 y={screenExitTarget.y + 30}
                                 fill={color}
-                                fontSize="12"
+                                fontSize={scaledFontSize}
                                 fontWeight="bold"
                                 style={{ pointerEvents: 'none' }}
                             >
@@ -202,13 +243,20 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
                 const screenWidth = flowBoxBottomRight.x - screenTargetTopLeft.x;
                 const screenHeight = flowBoxBottomRight.y - screenTargetTopLeft.y;
 
+                // Calculate arrow endpoint at the left edge of the preview box (not center)
+                const flowTargetLeftEdge = {
+                    x: flowTargetX,  // Left edge, not center
+                    y: flowTargetY + nodeHeight / 2  // Vertically centered
+                };
+                const screenTargetLeftEdge = flowToScreen(flowTargetLeftEdge.x, flowTargetLeftEdge.y);
+
                 // Draw regular preview option
                 return (
                     <g key={`preview-${index}`}>
-                        {/* Connection line */}
+                        {/* Connection line - ends at left edge of box */}
                         <path
                             d={`M ${screenCurrentEdge.x},${screenCurrentEdge.y} 
-                               L ${screenTargetCenter.x},${screenTargetCenter.y}`}
+                               L ${screenTargetLeftEdge.x},${screenTargetLeftEdge.y}`}
                             stroke={color}
                             strokeWidth={strokeWidth}
                             fill="none"
@@ -231,14 +279,14 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
                             rx={4}
                         />
 
-                        {/* Text inside preview box */}
+                        {/* Text inside preview box - scaled with zoom */}
                         <text
                             x={screenTargetCenter.x}
                             y={screenTargetCenter.y}
                             textAnchor="middle"
                             dominantBaseline="middle"
                             fill={isChosen ? 'white' : '#374151'}
-                            fontSize="12"
+                            fontSize={scaledFontSize}
                             fontWeight={isChosen ? 'bold' : 'normal'}
                             style={{ pointerEvents: 'none' }}
                         >
