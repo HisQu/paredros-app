@@ -1,5 +1,24 @@
 # Paredros App
 
+## 📚 Documentation
+
+**Complete architecture and development documentation is available in the `/docs` folder:**
+
+- **[docs/README.md](./docs/README.md)** - Documentation overview and navigation
+- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - Complete architecture documentation
+- **[docs/QUICK_REFERENCE.md](./docs/QUICK_REFERENCE.md)** - Quick API reference
+
+### For Developers
+
+The app has been refactored into a modular architecture with 13 specialized modules:
+- 6 Custom Hooks for business logic
+- 4 UI Components for presentation
+- 2 Utils modules for reusable functions
+
+See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the complete architectural overview.
+
+---
+
 ## Installation
 
 ### Windows
