@@ -33,20 +33,23 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
     }
 
     if (!currentNode) {
-        console.log("No current node found for preview overlay");
+        console.log("ParseOptionsOverlay: No current node found");
         return null;
     }
 
     const chosenIndex = nextParseStepInfo.chosen_transition_index - 1; // 1-based to 0-based
 
-    // Calculate the position of preview boxes
+    // Use flow coordinates directly - transform group handles viewport transformation
     const currentX = currentNode.position.x;
     const currentY = currentNode.position.y;
-    const currentCenterY = currentY + nodeHeight / 2;
 
-    // Transform positions to screen coordinates
-    const toScreenX = (x: number) => x * zoom + viewport.x;
-    const toScreenY = (y: number) => y * zoom + viewport.y;
+    console.log("ParseOptionsOverlay rendering:", {
+        currentNode: currentNode.id,
+        position: { x: currentX, y: currentY },
+        viewport,
+        zoom,
+        transitions: nextParseStepInfo.possible_transitions.length
+    });
 
     const verticalSpacing = 80;
     const horizontalOffset = 150;
@@ -60,7 +63,8 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
                 width: '100%',
                 height: '100%',
                 pointerEvents: 'none',
-                zIndex: 10,
+                zIndex: 1000,
+                overflow: 'visible',
             }}
         >
             <defs>
@@ -87,7 +91,7 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
                     <path d="M0,0 L0,6 L9,3 z" fill="#9ca3af" />
                 </marker>
             </defs>
-
+            <g transform={`translate(${viewport.x}, ${viewport.y}) scale(${zoom})`}>
             {nextParseStepInfo.possible_transitions.map((transition, index) => {
                 const isChosen = index === chosenIndex;
                 const transitionText = transition.matches.join(" ").trim();
@@ -102,19 +106,16 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
                     return null;
                 }
 
-                // Calculate position for this option
+                // Calculate position for this option in flow coordinates
                 const offsetY = (index - (nextParseStepInfo.possible_transitions.length - 1) / 2) * verticalSpacing;
                 const targetX = currentX + nodeWidth + horizontalOffset;
                 const targetY = currentY + offsetY;
+                const targetCenterX = targetX + nodeWidth / 2;
                 const targetCenterY = targetY + nodeHeight / 2;
 
-                // Screen coordinates
-                const screenCurrentX = toScreenX(currentX + nodeWidth);
-                const screenCurrentY = toScreenY(currentCenterY);
-                const screenTargetX = toScreenX(targetX);
-                const screenTargetY = toScreenY(targetCenterY);
-                const screenBoxX = toScreenX(targetX);
-                const screenBoxY = toScreenY(targetY);
+                // Flow coordinates (transform group handles viewport transformation)
+                const flowCurrentX = currentX + nodeWidth;
+                const flowCurrentY = currentY + nodeHeight / 2;
 
                 const color = isChosen ? '#22c55e' : '#9ca3af';
                 const strokeWidth = isChosen ? 3 : 2;
@@ -122,25 +123,26 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
 
                 if (isExitTransition && isChosen) {
                     // Draw arrow back to parent (or upward)
-                    const exitTargetY = toScreenY(currentY - 80);
+                    const exitTargetX = currentX + nodeWidth / 2;
+                    const exitTargetY = currentY - 80;
                     return (
                         <g key={`exit-${index}`}>
                             <path
-                                d={`M ${screenCurrentX},${screenCurrentY} 
-                                   Q ${screenCurrentX + 30},${screenCurrentY - 40} 
-                                   ${screenCurrentX},${exitTargetY}`}
+                                d={`M ${flowCurrentX},${flowCurrentY} 
+                                   Q ${flowCurrentX + 30},${flowCurrentY - 40} 
+                                   ${exitTargetX},${exitTargetY}`}
                                 stroke={color}
-                                strokeWidth={strokeWidth}
+                                strokeWidth={strokeWidth / zoom}
                                 fill="none"
-                                strokeDasharray="5,5"
+                                strokeDasharray={`${5 / zoom},${5 / zoom}`}
                                 opacity={opacity}
                                 markerEnd="url(#preview-arrow-green)"
                             />
                             <text
-                                x={screenCurrentX + 20}
+                                x={exitTargetX + 20}
                                 y={exitTargetY + 30}
                                 fill={color}
-                                fontSize="12"
+                                fontSize={12 / zoom}
                                 fontWeight="bold"
                                 style={{ pointerEvents: 'none' }}
                             >
@@ -155,38 +157,38 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
                     <g key={`preview-${index}`}>
                         {/* Connection line */}
                         <path
-                            d={`M ${screenCurrentX},${screenCurrentY} 
-                               L ${screenTargetX},${screenTargetY}`}
+                            d={`M ${flowCurrentX},${flowCurrentY} 
+                               L ${targetCenterX},${targetCenterY}`}
                             stroke={color}
-                            strokeWidth={strokeWidth}
+                            strokeWidth={strokeWidth / zoom}
                             fill="none"
-                            strokeDasharray={isChosen ? "0" : "8,4"}
+                            strokeDasharray={isChosen ? "0" : `${8 / zoom},${4 / zoom}`}
                             opacity={opacity}
                             markerEnd={isChosen ? "url(#preview-arrow-green)" : "url(#preview-arrow-gray)"}
                         />
 
                         {/* Preview box */}
                         <rect
-                            x={screenBoxX}
-                            y={screenBoxY}
-                            width={nodeWidth * zoom}
-                            height={nodeHeight * zoom}
+                            x={targetX}
+                            y={targetY}
+                            width={nodeWidth}
+                            height={nodeHeight}
                             fill={isChosen ? '#22c55e' : '#e5e7eb'}
                             stroke={color}
-                            strokeWidth={2}
-                            strokeDasharray="5,5"
+                            strokeWidth={2 / zoom}
+                            strokeDasharray={`${5 / zoom},${5 / zoom}`}
                             opacity={opacity}
-                            rx={4}
+                            rx={4 / zoom}
                         />
 
                         {/* Text inside preview box */}
                         <text
-                            x={screenBoxX + (nodeWidth * zoom) / 2}
-                            y={screenBoxY + (nodeHeight * zoom) / 2}
+                            x={targetCenterX}
+                            y={targetCenterY}
                             textAnchor="middle"
                             dominantBaseline="middle"
                             fill={isChosen ? 'white' : '#374151'}
-                            fontSize={Math.max(10, 12 * zoom)}
+                            fontSize={12 / zoom}
                             fontWeight={isChosen ? 'bold' : 'normal'}
                             style={{ pointerEvents: 'none' }}
                         >
@@ -195,6 +197,7 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
                     </g>
                 );
             })}
+            </g>
         </svg>
     );
 };

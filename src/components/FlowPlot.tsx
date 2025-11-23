@@ -454,26 +454,27 @@ const Flow = ({
     }
 
     return (
-        <ReactFlow
-            onInit={(inst) => {
-                rfInstance.current = inst;
-            }}
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeDragStart={onNodeDragStart}
-            onNodeDrag={onNodeDrag}
-            connectionLineType={ConnectionLineType.SmoothStep}
-            nodeTypes={{parseTreeNode: ParseTreeNodeComponent}}
-            fitView
-            style={{backgroundColor: "#F7F9FB"}}
-            nodesDraggable={true}
-            nodesConnectable={false}
-            elementsSelectable={true}
-            className="h-full w-full"
-        >
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <ReactFlow
+                onInit={(inst) => {
+                    rfInstance.current = inst;
+                }}
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onNodeDragStart={onNodeDragStart}
+                onNodeDrag={onNodeDrag}
+                connectionLineType={ConnectionLineType.SmoothStep}
+                nodeTypes={{parseTreeNode: ParseTreeNodeComponent}}
+                fitView
+                style={{backgroundColor: "#F7F9FB"}}
+                nodesDraggable={true}
+                nodesConnectable={false}
+                elementsSelectable={true}
+                className="h-full w-full"
+            >
             <Panel position="top-right" className="grid grid-cols-2 gap-4">
                 <Button onClick={() => onLayout("TB")} className="mr-2">
                     vertical layout
@@ -562,14 +563,15 @@ const Flow = ({
                     )}
                 </div>
             </Panel>
+            <Controls/>
+            <MiniMap/>
+            <Background variant={BackgroundVariant.Dots} gap={12} size={1}/>
             <ParseOptionsOverlay
                 nextParseStepInfo={next_parse_step_info}
                 lastAddedNodeIds={lastAddedNodeIds}
             />
-            <Controls/>
-            <MiniMap/>
-            <Background variant={BackgroundVariant.Dots} gap={12} size={1}/>
         </ReactFlow>
+        </div>
     );
 }
 export default Flow;
