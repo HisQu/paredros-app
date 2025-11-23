@@ -1,5 +1,5 @@
-import React from 'react';
-import { useReactFlow } from '@xyflow/react';
+import React, { useState } from 'react';
+import { useReactFlow, useOnViewportChange } from '@xyflow/react';
 import { ParseStepInfo } from '../interfaces/UserGrammar';
 import { ParseTreeNode } from '../interfaces/ParseTreeNode';
 import { nodeWidth, nodeHeight } from '../constants';
@@ -13,15 +13,32 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
     nextParseStepInfo,
     lastAddedNodeIds
 }) => {
-    const { getNodes, getZoom, getViewport } = useReactFlow();
+    const reactFlowInstance = useReactFlow();
+    const getNodes = reactFlowInstance.getNodes;
+
+    // Force re-render when viewport changes (pan/zoom)
+    const [, forceUpdate] = useState({});
+
+    useOnViewportChange({
+        onChange: () => {
+            forceUpdate({});
+        }
+    });
+
+    // Helper function to convert flow coordinates to screen coordinates
+    const flowToScreen = (flowX: number, flowY: number) => {
+        const viewport = reactFlowInstance.getViewport();
+        return {
+            x: flowX * viewport.zoom + viewport.x,
+            y: flowY * viewport.zoom + viewport.y
+        };
+    };
 
     if (!nextParseStepInfo || !nextParseStepInfo.possible_transitions || nextParseStepInfo.possible_transitions.length === 0) {
         return null;
     }
 
     const nodes = getNodes() as ParseTreeNode[];
-    const zoom = getZoom();
-    const viewport = getViewport();
 
     // Find the current active node
     let currentNode: ParseTreeNode | undefined = nodes.find(n => n.id === nextParseStepInfo.step_id);
@@ -39,15 +56,19 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
 
     const chosenIndex = nextParseStepInfo.chosen_transition_index - 1; // 1-based to 0-based
 
-    // Use flow coordinates directly - transform group handles viewport transformation
-    const currentX = currentNode.position.x;
-    const currentY = currentNode.position.y;
+    // Convert flow coordinates to screen coordinates
+    // This ensures perfect alignment regardless of zoom/pan
+    const flowNodeCenter = {
+        x: currentNode.position.x + nodeWidth / 2,
+        y: currentNode.position.y + nodeHeight / 2
+    };
+
+    const screenPos = flowToScreen(flowNodeCenter.x, flowNodeCenter.y);
 
     console.log("ParseOptionsOverlay rendering:", {
         currentNode: currentNode.id,
-        position: { x: currentX, y: currentY },
-        viewport,
-        zoom,
+        flowPosition: currentNode.position,
+        screenPosition: screenPos,
         transitions: nextParseStepInfo.possible_transitions.length
     });
 
@@ -91,7 +112,6 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
                     <path d="M0,0 L0,6 L9,3 z" fill="#9ca3af" />
                 </marker>
             </defs>
-            <g transform={`translate(${viewport.x}, ${viewport.y}) scale(${zoom})`}>
             {nextParseStepInfo.possible_transitions.map((transition, index) => {
                 const isChosen = index === chosenIndex;
                 const transitionText = transition.matches.join(" ").trim();
@@ -108,14 +128,25 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
 
                 // Calculate position for this option in flow coordinates
                 const offsetY = (index - (nextParseStepInfo.possible_transitions.length - 1) / 2) * verticalSpacing;
-                const targetX = currentX + nodeWidth + horizontalOffset;
-                const targetY = currentY + offsetY;
-                const targetCenterX = targetX + nodeWidth / 2;
-                const targetCenterY = targetY + nodeHeight / 2;
 
-                // Flow coordinates (transform group handles viewport transformation)
-                const flowCurrentX = currentX + nodeWidth;
-                const flowCurrentY = currentY + nodeHeight / 2;
+                // Flow coordinates for target box
+                const flowTargetX = currentNode.position.x + nodeWidth + horizontalOffset;
+                const flowTargetY = currentNode.position.y + offsetY;
+                const flowTargetCenter = {
+                    x: flowTargetX + nodeWidth / 2,
+                    y: flowTargetY + nodeHeight / 2
+                };
+
+                // Convert to screen coordinates
+                const screenTargetTopLeft = flowToScreen(flowTargetX, flowTargetY);
+                const screenTargetCenter = flowToScreen(flowTargetCenter.x, flowTargetCenter.y);
+
+                // Current node edge point (right side, vertically centered)
+                const flowCurrentEdge = {
+                    x: currentNode.position.x + nodeWidth,
+                    y: currentNode.position.y + nodeHeight / 2
+                };
+                const screenCurrentEdge = flowToScreen(flowCurrentEdge.x, flowCurrentEdge.y);
 
                 const color = isChosen ? '#22c55e' : '#9ca3af';
                 const strokeWidth = isChosen ? 3 : 2;
@@ -123,26 +154,37 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
 
                 if (isExitTransition && isChosen) {
                     // Draw arrow back to parent (or upward)
-                    const exitTargetX = currentX + nodeWidth / 2;
-                    const exitTargetY = currentY - 80;
+                    const flowExitTarget = {
+                        x: currentNode.position.x + nodeWidth / 2,
+                        y: currentNode.position.y - 80
+                    };
+                    const screenExitTarget = flowToScreen(flowExitTarget.x, flowExitTarget.y);
+
+                    // Control point for the curve
+                    const flowControlPoint = {
+                        x: flowCurrentEdge.x + 30,
+                        y: flowCurrentEdge.y - 40
+                    };
+                    const screenControlPoint = flowToScreen(flowControlPoint.x, flowControlPoint.y);
+
                     return (
                         <g key={`exit-${index}`}>
                             <path
-                                d={`M ${flowCurrentX},${flowCurrentY} 
-                                   Q ${flowCurrentX + 30},${flowCurrentY - 40} 
-                                   ${exitTargetX},${exitTargetY}`}
+                                d={`M ${screenCurrentEdge.x},${screenCurrentEdge.y} 
+                                   Q ${screenControlPoint.x},${screenControlPoint.y} 
+                                   ${screenExitTarget.x},${screenExitTarget.y}`}
                                 stroke={color}
-                                strokeWidth={strokeWidth / zoom}
+                                strokeWidth={strokeWidth}
                                 fill="none"
-                                strokeDasharray={`${5 / zoom},${5 / zoom}`}
+                                strokeDasharray="5,5"
                                 opacity={opacity}
                                 markerEnd="url(#preview-arrow-green)"
                             />
                             <text
-                                x={exitTargetX + 20}
-                                y={exitTargetY + 30}
+                                x={screenExitTarget.x + 20}
+                                y={screenExitTarget.y + 30}
                                 fill={color}
-                                fontSize={12 / zoom}
+                                fontSize="12"
                                 fontWeight="bold"
                                 style={{ pointerEvents: 'none' }}
                             >
@@ -152,43 +194,51 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
                     );
                 }
 
+                // Calculate screen dimensions for the box
+                const flowBoxBottomRight = flowToScreen(
+                    flowTargetX + nodeWidth,
+                    flowTargetY + nodeHeight
+                );
+                const screenWidth = flowBoxBottomRight.x - screenTargetTopLeft.x;
+                const screenHeight = flowBoxBottomRight.y - screenTargetTopLeft.y;
+
                 // Draw regular preview option
                 return (
                     <g key={`preview-${index}`}>
                         {/* Connection line */}
                         <path
-                            d={`M ${flowCurrentX},${flowCurrentY} 
-                               L ${targetCenterX},${targetCenterY}`}
+                            d={`M ${screenCurrentEdge.x},${screenCurrentEdge.y} 
+                               L ${screenTargetCenter.x},${screenTargetCenter.y}`}
                             stroke={color}
-                            strokeWidth={strokeWidth / zoom}
+                            strokeWidth={strokeWidth}
                             fill="none"
-                            strokeDasharray={isChosen ? "0" : `${8 / zoom},${4 / zoom}`}
+                            strokeDasharray={isChosen ? "0" : "8,4"}
                             opacity={opacity}
                             markerEnd={isChosen ? "url(#preview-arrow-green)" : "url(#preview-arrow-gray)"}
                         />
 
                         {/* Preview box */}
                         <rect
-                            x={targetX}
-                            y={targetY}
-                            width={nodeWidth}
-                            height={nodeHeight}
+                            x={screenTargetTopLeft.x}
+                            y={screenTargetTopLeft.y}
+                            width={screenWidth}
+                            height={screenHeight}
                             fill={isChosen ? '#22c55e' : '#e5e7eb'}
                             stroke={color}
-                            strokeWidth={2 / zoom}
-                            strokeDasharray={`${5 / zoom},${5 / zoom}`}
+                            strokeWidth={2}
+                            strokeDasharray="5,5"
                             opacity={opacity}
-                            rx={4 / zoom}
+                            rx={4}
                         />
 
                         {/* Text inside preview box */}
                         <text
-                            x={targetCenterX}
-                            y={targetCenterY}
+                            x={screenTargetCenter.x}
+                            y={screenTargetCenter.y}
                             textAnchor="middle"
                             dominantBaseline="middle"
                             fill={isChosen ? 'white' : '#374151'}
-                            fontSize={12 / zoom}
+                            fontSize="12"
                             fontWeight={isChosen ? 'bold' : 'normal'}
                             style={{ pointerEvents: 'none' }}
                         >
@@ -197,7 +247,6 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
                     </g>
                 );
             })}
-            </g>
         </svg>
     );
 };
