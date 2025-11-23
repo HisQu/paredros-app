@@ -20,6 +20,7 @@
     "@tauri-apps/plugin-dialog": "~2",
     "@tauri-apps/plugin-fs": "~2",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-store": "^2.4.1",
     "@types/d3": "^7.4.3",
     "@xyflow/react": "^12.9.2",
     "allotment": "^1.20.3",

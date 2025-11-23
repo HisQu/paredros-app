@@ -1,8 +1,9 @@
-import { useState, Dispatch, SetStateAction } from "react";
+import { useState, useEffect, Dispatch, SetStateAction } from "react";
 import { ParseStepInfo, TokenInfo, UserGrammar } from "../interfaces/UserGrammar";
 import { ParseTreeNode } from "../interfaces/ParseTreeNode";
 import { PySetupProgressType } from "../interfaces/PySetupProgressType";
 import { Edge } from "@xyflow/react";
+import { useUserSettings } from "./useUserSettings";
 
 export interface AppState {
     pyState: {
@@ -62,6 +63,8 @@ export interface AppState {
 }
 
 export function useAppState(): AppState {
+    const { getSetting, setSetting } = useUserSettings();
+
     // Python initialization progress
     const [pyProgress, setPyProgress] = useState<PySetupProgressType>('Idle');
 
@@ -93,6 +96,20 @@ export function useAppState(): AppState {
 
     // Grammar editor state
     const [editorContent, setEditorContent] = useState<string>("");
+
+    // Load settings on mount
+    useEffect(() => {
+        const loadSettings = async () => {
+            const showLabels = await getSetting('showTokenLabels');
+            setShowTokenLabels(showLabels);
+        };
+        loadSettings();
+    }, [getSetting]);
+
+    // Save showTokenLabels setting when it changes
+    useEffect(() => {
+        setSetting('showTokenLabels', showTokenLabels);
+    }, [showTokenLabels, setSetting]);
 
     return {
         pyState: { pyProgress, setPyProgress },

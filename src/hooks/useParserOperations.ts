@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { AppState } from "./useAppState";
 import { ParseStepInfo, TokenInfo } from "../interfaces/UserGrammar";
