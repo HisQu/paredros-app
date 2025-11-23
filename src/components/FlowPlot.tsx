@@ -42,8 +42,9 @@ type FlowProps = {
     step_to_next_decision: (event: React.MouseEvent<HTMLButtonElement>) => void;
     current_step?: string;
     step_action: (step_id: number) => void;
-    generate_parser: () => Promise<void>;
     next_parse_step_info: ParseStepInfo | undefined;
+    flowLayoutDirection: LayoutDirection;
+    onFlowLayoutDirectionChange: (direction: LayoutDirection) => void;
 };
 
 const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
@@ -189,8 +190,9 @@ const Flow = ({
                   step_to_next_decision,
                   current_step,
                   step_action,
-                  generate_parser,
-                  next_parse_step_info
+                  next_parse_step_info,
+                  flowLayoutDirection,
+                  onFlowLayoutDirectionChange
 }: FlowProps) => {
     const rfInstance = useRef<any | null>(null); // not pretty, but typing did not work
 
@@ -205,8 +207,8 @@ const Flow = ({
     // Ref to store initial positions of nodes when dragging starts.
     const dragStartPositionsRef = useRef<Map<string, { x: number, y: number }>>(new Map());
 
-    // Layout direction state
-    const [direction, setDirection] = useState<LayoutDirection>("TB");
+    // Layout direction state - initialize from prop
+    const [direction, setDirection] = useState<LayoutDirection>(flowLayoutDirection);
 
     const prevNodeIdsRef = useRef<Set<string> | null>(null);
 
@@ -272,21 +274,23 @@ const Flow = ({
 
     const onLayout = useCallback(
         (_direction?: LayoutDirection) => {
-            setDirection(_direction || direction);
+            const newDirection = _direction || direction;
+            setDirection(newDirection);
+            onFlowLayoutDirectionChange(newDirection);
 
             const {nodes: layoutedNodes, edges: layoutedEdges} = getLayoutedElements(
                 paramNodes,
                 paramEdges,
                 expandedNodes,
                 onToggleNode,
-                _direction || direction,
+                newDirection,
                 lastAddedNodeIds
             );
 
             setNodes([...layoutedNodes]);
             setEdges([...layoutedEdges]);
         },
-        [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges]
+        [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges, direction, onFlowLayoutDirectionChange, lastAddedNodeIds]
     );
 
     const expandAll = () => {
@@ -458,7 +462,6 @@ const Flow = ({
                         <span data-slot="label">Auto-expand newly added nodes</span>
                     </CheckboxField>
                 </CheckboxGroup>
-                <Button color="fuchsia" onClick={generate_parser}>Regenerate Parser</Button>
             </Panel>
             <Panel position="top-left">
                 <h3 className="text-lg font-semibold mb-2 text-gray-700">Rule Stack</h3>

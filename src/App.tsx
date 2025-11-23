@@ -41,7 +41,7 @@ function App() {
     const expressionEditor = useExpressionEditor(appState);
 
     // Destructure state for easier access
-    const { pyState, grammarState, parseState, expressionState, editorState } = appState;
+    const { pyState, grammarState, parseState, expressionState, editorState, flowLayoutState } = appState;
 
     return (
         <div className="bg-white text-zinc-900 flex flex-col h-screen">
@@ -94,6 +94,8 @@ function App() {
                                         parserOps.generate_parser_save_grammar_files_parse_input
                                     }
                                     parse_input={parserOps.parse_input}
+                                    flowLayoutDirection={flowLayoutState.flowLayoutDirection}
+                                    setFlowLayoutDirection={flowLayoutState.setFlowLayoutDirection}
                                 />
                             </div>
                         </Allotment.Pane>

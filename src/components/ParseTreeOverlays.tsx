@@ -67,26 +67,6 @@ const BigLoadGrammarOverlay: React.FC<OverlayProps> = ({onClick}) => {
     );
 }
 
-const ParserInputOverlay: React.FC<OverlayProps> = ({onClick}) => {
-    return (
-        <div className="text-center text-xl bg-green-100 h-full p-4">
-            <button
-                type="button"
-                onClick={onClick}
-                className="relative block w-full h-full rounded-lg border-2 border-dashed border-gray-300 p-48 text-center hover:border-gray-400 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-hidden"
-            >
-                <BoltIcon className="mx-auto size-12"/>
-                <span className="mt-2 block font-semibold text-gray-900">
-          The grammar has been changed.{' '}
-                    <span className="underline decoration-4 underline-offset-2 decoration-dotted decoration-blue-700">
-            Generate a new parser and parse the input.
-          </span>
-        </span>
-            </button>
-        </div>
-    );
-};
-
 const ParseExpressionOverlay: React.FC<OverlayProps> = ({onClick}) => {
     return (
         <div className="text-center text-xl bg-orange-100 h-full p-4">
@@ -274,4 +254,4 @@ const NoGrammarFilesOverlay: React.FC<OverlayProps> = ({onClick}) => {
     );
 }
 
-export {BigLoadGrammarOverlay, ParserInputOverlay, ParseExpressionOverlay, GenerateParserOverlay, LoadGrammarOverlay, ExpressionChangedOverlay, SelectGrammarFileOverlay, NoGrammarFilesOverlay};
+export {BigLoadGrammarOverlay, ParseExpressionOverlay, GenerateParserOverlay, LoadGrammarOverlay, ExpressionChangedOverlay, SelectGrammarFileOverlay, NoGrammarFilesOverlay};

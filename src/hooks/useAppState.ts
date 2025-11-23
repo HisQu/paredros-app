@@ -60,6 +60,10 @@ export interface AppState {
         editorContent: string;
         setEditorContent: Dispatch<SetStateAction<string>>;
     };
+    flowLayoutState: {
+        flowLayoutDirection: 'TB' | 'LR';
+        setFlowLayoutDirection: Dispatch<SetStateAction<'TB' | 'LR'>>;
+    };
 }
 
 export function useAppState(): AppState {
@@ -98,6 +102,9 @@ export function useAppState(): AppState {
     // Grammar editor state
     const [editorContent, setEditorContent] = useState<string>("");
 
+    // Flow layout state
+    const [flowLayoutDirection, setFlowLayoutDirection] = useState<'TB' | 'LR'>('TB');
+
     // Load settings on mount
     useEffect(() => {
         const loadSettings = async () => {
@@ -105,6 +112,11 @@ export function useAppState(): AppState {
             const showLabels = await getSetting('showTokenLabels');
             console.log('[AppState] Loaded showTokenLabels:', showLabels);
             setShowTokenLabels(showLabels);
+
+            const flowLayout = await getSetting('flowLayoutDirection');
+            console.log('[AppState] Loaded flowLayoutDirection:', flowLayout);
+            setFlowLayoutDirection(flowLayout);
+
             setSettingsInitialized(true);
             console.log('[AppState] Settings initialized');
         };
@@ -120,6 +132,14 @@ export function useAppState(): AppState {
             console.log('[AppState] Skipping save (not initialized yet)');
         }
     }, [showTokenLabels, setSetting, settingsInitialized]);
+
+    // Save flowLayoutDirection setting when it changes (but not on initial load)
+    useEffect(() => {
+        if (settingsInitialized) {
+            console.log('[AppState] Saving flowLayoutDirection:', flowLayoutDirection);
+            setSetting('flowLayoutDirection', flowLayoutDirection);
+        }
+    }, [flowLayoutDirection, setSetting, settingsInitialized]);
 
     return {
         pyState: { pyProgress, setPyProgress },
@@ -172,6 +192,10 @@ export function useAppState(): AppState {
         editorState: {
             editorContent,
             setEditorContent,
+        },
+        flowLayoutState: {
+            flowLayoutDirection,
+            setFlowLayoutDirection,
         },
     };
 }

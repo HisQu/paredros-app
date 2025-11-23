@@ -4,6 +4,8 @@
 export interface UserSettings {
     // Expression editor settings
     showTokenLabels: boolean;
+    // Flow layout settings
+    flowLayoutDirection: 'TB' | 'LR'; // TB = Top-to-Bottom (vertical), LR = Left-to-Right (horizontal)
 }
 
 /**
@@ -11,5 +13,6 @@ export interface UserSettings {
  */
 export const DEFAULT_USER_SETTINGS: UserSettings = {
     showTokenLabels: true,
+    flowLayoutDirection: 'TB',
 };
 
