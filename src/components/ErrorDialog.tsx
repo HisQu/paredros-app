@@ -1,27 +1,30 @@
 import { Button } from './ui/button'
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from './ui/dialog'
-import { useState } from 'react'
 
-export function ErrorDialog({ error, ...props }: { error: {title: string, description: string, details: string } } & React.ComponentPropsWithoutRef<typeof Button>) {
-  let [isOpen, setIsOpen] = useState(false)
+interface ErrorDialogProps {
+  error: {title: string, description: string, details: string } | null;
+  onClose: () => void;
+}
+
+export function ErrorDialog({ error, onClose }: ErrorDialogProps) {
+  if (!error) return null;
 
   return (
-    <>
-      <Button type="button" onClick={() => setIsOpen(true)} {...props} />
-      <Dialog open={isOpen} onClose={setIsOpen}>
-        <DialogTitle>ErrorTitle</DialogTitle>
-        <DialogDescription>
-          ErrorDescr
-        </DialogDescription>
-        <DialogBody>
-            ErrorBody
-        </DialogBody>
-        <DialogActions>
-          <Button plain onClick={() => setIsOpen(false)}>
-            Ok
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
+    <Dialog open={!!error} onClose={() => onClose()}>
+      <DialogTitle>{error.title}</DialogTitle>
+      <DialogDescription>
+        {error.description}
+      </DialogDescription>
+      <DialogBody>
+        <pre className="text-xs p-3 rounded border border-gray-200 whitespace-pre-wrap text-white">
+          {error.details}
+        </pre>
+      </DialogBody>
+      <DialogActions>
+        <Button plain onClick={() => onClose()}>
+          OK
+        </Button>
+      </DialogActions>
+    </Dialog>
   )
 }

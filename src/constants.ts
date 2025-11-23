@@ -5,11 +5,6 @@ import {
 
 import type { languages } from "monaco-editor";
 
-const sampleInputText = `<head>Henricus de Bocholdia al. d. Foet cler. Traiect., mag. in art. bac. in decr.</head>
-
-<sublemma>m. prov. super par. eccl. in Bodegrauen Traiect. dioc. vacat. per transgr. Ghiselberti de Lochorst ad decan. eccl. s. Saluatoris Traiect. 9 apr. 1410. L 138 254v.</sublemma>
-`;
-
 const antlr4MonarchLanguage: languages.IMonarchLanguage = {
   // Default token and file extension postfix
   defaultToken: '',
@@ -137,4 +132,4 @@ const nodeHeight = 36;
 
 const tempFileName = "temporaryParedrosInput.txt";
 
-export { tempFileName, nodeWidth, nodeHeight, initialNodes, initialEdges, sampleInputText, antlr4MonarchLanguage }
+export { tempFileName, nodeWidth, nodeHeight, initialNodes, initialEdges, antlr4MonarchLanguage }

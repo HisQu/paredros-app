@@ -43,6 +43,8 @@ type FlowProps = {
     current_step?: string;
     step_action: (step_id: number) => void;
     next_parse_step_info: ParseStepInfo | undefined;
+    flowLayoutDirection: LayoutDirection;
+    onFlowLayoutDirectionChange: (direction: LayoutDirection) => void;
 };
 
 const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
@@ -179,7 +181,19 @@ const getLayoutedElements = (
     return {nodes: newNodes, edges: newEdges};
 };
 
-const Flow = ({node: paramNodes, edge: paramEdges, step_backwards, step_forwards, step_to_last_decision, step_to_next_decision, current_step, step_action, next_parse_step_info}: FlowProps) => {
+const Flow = ({
+                  node: paramNodes,
+                  edge: paramEdges,
+                  step_backwards,
+                  step_forwards,
+                  step_to_last_decision,
+                  step_to_next_decision,
+                  current_step,
+                  step_action,
+                  next_parse_step_info,
+                  flowLayoutDirection,
+                  onFlowLayoutDirectionChange
+}: FlowProps) => {
     const rfInstance = useRef<any | null>(null); // not pretty, but typing did not work
 
     // Track expanded nodes in a Set, with root nodes expanded by default
@@ -193,8 +207,8 @@ const Flow = ({node: paramNodes, edge: paramEdges, step_backwards, step_forwards
     // Ref to store initial positions of nodes when dragging starts.
     const dragStartPositionsRef = useRef<Map<string, { x: number, y: number }>>(new Map());
 
-    // Layout direction state
-    const [direction, setDirection] = useState<LayoutDirection>("TB");
+    // Layout direction state - initialize from prop
+    const [direction, setDirection] = useState<LayoutDirection>(flowLayoutDirection);
 
     const prevNodeIdsRef = useRef<Set<string> | null>(null);
 
@@ -260,21 +274,23 @@ const Flow = ({node: paramNodes, edge: paramEdges, step_backwards, step_forwards
 
     const onLayout = useCallback(
         (_direction?: LayoutDirection) => {
-            setDirection(_direction || direction);
+            const newDirection = _direction || direction;
+            setDirection(newDirection);
+            onFlowLayoutDirectionChange(newDirection);
 
             const {nodes: layoutedNodes, edges: layoutedEdges} = getLayoutedElements(
                 paramNodes,
                 paramEdges,
                 expandedNodes,
                 onToggleNode,
-                _direction || direction,
+                newDirection,
                 lastAddedNodeIds
             );
 
             setNodes([...layoutedNodes]);
             setEdges([...layoutedEdges]);
         },
-        [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges]
+        [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges, direction, onFlowLayoutDirectionChange, lastAddedNodeIds]
     );
 
     const expandAll = () => {

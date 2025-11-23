@@ -395,6 +395,7 @@ fn main() {
     Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_store::Builder::new().build())
         .manage(ParseInfoStore::default())
         .invoke_handler(tauri::generate_handler![
             initialise_python_frontend_wrapper,
