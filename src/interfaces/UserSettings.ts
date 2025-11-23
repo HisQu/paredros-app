@@ -6,6 +6,7 @@ export interface UserSettings {
     showTokenLabels: boolean;
     // Flow layout settings
     flowLayoutDirection: 'TB' | 'LR'; // TB = Top-to-Bottom (vertical), LR = Left-to-Right (horizontal)
+    autoCenterActiveNode: boolean; // Auto-center newly added/active nodes in the flow view
 }
 
 /**
@@ -14,5 +15,6 @@ export interface UserSettings {
 export const DEFAULT_USER_SETTINGS: UserSettings = {
     showTokenLabels: true,
     flowLayoutDirection: 'TB',
+    autoCenterActiveNode: true,
 };
 

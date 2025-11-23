@@ -45,6 +45,8 @@ type FlowProps = {
     next_parse_step_info: ParseStepInfo | undefined;
     flowLayoutDirection: LayoutDirection;
     onFlowLayoutDirectionChange: (direction: LayoutDirection) => void;
+    autoCenterActiveNode: boolean;
+    onAutoCenterActiveNodeChange: (value: boolean) => void;
 };
 
 const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
@@ -192,7 +194,9 @@ const Flow = ({
                   step_action,
                   next_parse_step_info,
                   flowLayoutDirection,
-                  onFlowLayoutDirectionChange
+                  onFlowLayoutDirectionChange,
+                  autoCenterActiveNode,
+                  onAutoCenterActiveNodeChange
 }: FlowProps) => {
     const rfInstance = useRef<any | null>(null); // not pretty, but typing did not work
 
@@ -216,6 +220,9 @@ const Flow = ({
     const [automaticExpanding, setAutomaticExpanding] = useState(true);
 
     const [lastAddedNodeIds, setLastAddedNodeIds] = useState<Set<string> | null>(null);
+
+    // Track if we should trigger auto-center (only when new nodes are added, not on expand/collapse)
+    const shouldAutoCenterRef = useRef<boolean>(false);
 
     // Toggle function to expand/collapse individual nodes
     const onToggleNode = useCallback((nodeId: string) => {
@@ -356,6 +363,7 @@ const Flow = ({
             });
 
             let newestId: string | null = null;
+            let hasNewNodes = false;
 
             if (autoExpandNew && prevNodeIdsRef.current) {
                 const prevIds = prevNodeIdsRef.current;
@@ -368,6 +376,7 @@ const Flow = ({
                 });
 
                 if (newIds.length) {
+                    hasNewNodes = true;
                     // expand each new node + its ancestors
                     newIds.forEach(id => {
                         let cur: string | undefined = id;
@@ -389,6 +398,8 @@ const Flow = ({
 
             // Update the highlight *after* we finish setExpandedNodes
             if (newestId !== null) {
+                // Only set shouldAutoCenter if we actually detected new nodes
+                shouldAutoCenterRef.current = hasNewNodes;
                 // schedule on next tick to avoid setState-in-setState warnings in strict mode
                 setLastAddedNodeIds(new Set<string>([newestId]));
             }
@@ -404,6 +415,27 @@ const Flow = ({
         }
         reconcileExpanded(automaticExpanding);
     }, [paramNodes, paramEdges, automaticExpanding, reconcileExpanded]);
+
+    // Auto-center the newly added node if the setting is enabled
+    useEffect(() => {
+        // Only center if we should (new nodes added, not just expand/collapse)
+        if (autoCenterActiveNode && shouldAutoCenterRef.current && lastAddedNodeIds && lastAddedNodeIds.size > 0 && rfInstance.current) {
+            const nodeId = Array.from(lastAddedNodeIds)[0];
+            const node = nodes.find(n => n.id === nodeId);
+
+            if (node) {
+                // Center the view on the node with animation
+                rfInstance.current.setCenter(
+                    node.position.x + nodeWidth / 2,
+                    node.position.y + nodeHeight / 2,
+                    { zoom: rfInstance.current.getZoom(), duration: 300 }
+                );
+            }
+
+            // Reset the flag after centering
+            shouldAutoCenterRef.current = false;
+        }
+    }, [lastAddedNodeIds, autoCenterActiveNode, nodes]);
 
     function onChangeListener(event: React.ChangeEvent<HTMLInputElement>) {
         const value = parseInt(event.target.value, 10);
@@ -455,11 +487,18 @@ const Flow = ({
                        onChange={onChangeListener}
                        className="text-black bg-blue-100 rounded-sm"
                 />
-                <Button color="fuchsia" onClick={expandAll}>Expand all</Button>
+                <Button color="fuchsia" onClick={expandAll}>Expand all nodes</Button>
                 <CheckboxGroup>
                     <CheckboxField>
                         <Checkbox onChange={handleAutomaticExpandingChange} defaultChecked={true}/>
                         <span data-slot="label">Auto-expand newly added nodes</span>
+                    </CheckboxField>
+                    <CheckboxField>
+                        <Checkbox
+                            checked={autoCenterActiveNode}
+                            onChange={onAutoCenterActiveNodeChange}
+                        />
+                        <span data-slot="label">Auto-center active node</span>
                     </CheckboxField>
                 </CheckboxGroup>
             </Panel>
