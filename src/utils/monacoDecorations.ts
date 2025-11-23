@@ -77,6 +77,7 @@ export function createTokenDecorations(
 
                 ...(showLabels && {
                     after: {
+                        // Two trailing spaces for visual separation from next token
                         content: ` ${label}  `,
                         inlineClassName: `token-inline-annotation`,
                     },
