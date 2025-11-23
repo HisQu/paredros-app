@@ -1,0 +1,59 @@
+name: 'PR checks'
+
+on:
+  pull_request:
+    branches:
+      - main
+
+env:
+  PYTHON_VERSION_FILE: .python-version
+
+jobs:
+  linux-build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read python version
+        shell: bash
+        run: echo "PYTHON_VERSION=$(head -n1 ${{ env.PYTHON_VERSION_FILE }})" >> $GITHUB_ENV
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ${{ env.PYTHON_VERSION_FILE }}
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install frontend dependencies
+        run: |
+          yarn install --frozen-lockfile || yarn install
+
+      - name: Build Tauri app (Linux only, no release)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: ''
