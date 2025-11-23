@@ -221,6 +221,9 @@ const Flow = ({
 
     const [lastAddedNodeIds, setLastAddedNodeIds] = useState<Set<string> | null>(null);
 
+    // Track if we should trigger auto-center (only when new nodes are added, not on expand/collapse)
+    const shouldAutoCenterRef = useRef<boolean>(false);
+
     // Toggle function to expand/collapse individual nodes
     const onToggleNode = useCallback((nodeId: string) => {
         setExpandedNodes(prev => {
@@ -360,6 +363,7 @@ const Flow = ({
             });
 
             let newestId: string | null = null;
+            let hasNewNodes = false;
 
             if (autoExpandNew && prevNodeIdsRef.current) {
                 const prevIds = prevNodeIdsRef.current;
@@ -372,6 +376,7 @@ const Flow = ({
                 });
 
                 if (newIds.length) {
+                    hasNewNodes = true;
                     // expand each new node + its ancestors
                     newIds.forEach(id => {
                         let cur: string | undefined = id;
@@ -393,6 +398,8 @@ const Flow = ({
 
             // Update the highlight *after* we finish setExpandedNodes
             if (newestId !== null) {
+                // Only set shouldAutoCenter if we actually detected new nodes
+                shouldAutoCenterRef.current = hasNewNodes;
                 // schedule on next tick to avoid setState-in-setState warnings in strict mode
                 setLastAddedNodeIds(new Set<string>([newestId]));
             }
@@ -411,7 +418,8 @@ const Flow = ({
 
     // Auto-center the newly added node if the setting is enabled
     useEffect(() => {
-        if (autoCenterActiveNode && lastAddedNodeIds && lastAddedNodeIds.size > 0 && rfInstance.current) {
+        // Only center if we should (new nodes added, not just expand/collapse)
+        if (autoCenterActiveNode && shouldAutoCenterRef.current && lastAddedNodeIds && lastAddedNodeIds.size > 0 && rfInstance.current) {
             const nodeId = Array.from(lastAddedNodeIds)[0];
             const node = nodes.find(n => n.id === nodeId);
 
@@ -423,6 +431,9 @@ const Flow = ({
                     { zoom: rfInstance.current.getZoom(), duration: 300 }
                 );
             }
+
+            // Reset the flag after centering
+            shouldAutoCenterRef.current = false;
         }
     }, [lastAddedNodeIds, autoCenterActiveNode, nodes]);
 
@@ -476,7 +487,7 @@ const Flow = ({
                        onChange={onChangeListener}
                        className="text-black bg-blue-100 rounded-sm"
                 />
-                <Button color="fuchsia" onClick={expandAll}>Expand all</Button>
+                <Button color="fuchsia" onClick={expandAll}>Expand all nodes</Button>
                 <CheckboxGroup>
                     <CheckboxField>
                         <Checkbox onChange={handleAutomaticExpandingChange} defaultChecked={true}/>
