@@ -87,7 +87,7 @@ export function useUserSettings() {
             for (const key of Object.keys(DEFAULT_USER_SETTINGS) as Array<keyof UserSettings>) {
                 const value = await store.get<UserSettings[typeof key]>(key);
                 if (value !== null && value !== undefined) {
-                    settings[key] = value;
+                    (settings[key] as UserSettings[typeof key]) = value;
                 }
             }
 
