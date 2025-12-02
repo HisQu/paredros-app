@@ -126,7 +126,7 @@ export function useParserOperations(
         }
     }, [parseState.parseInfo]);
 
-    // useEffect: userGrammar changes -> set active file to main grammar file
+    // useEffect: userGrammar changes -> set active file to main grammar file (only on initial load)
     useEffect(() => {
         if (grammarState.userGrammar && grammarState.grammarFileLocation) {
             const userGrammar = grammarState.userGrammar;
@@ -137,8 +137,11 @@ export function useParserOperations(
                 key => userGrammar.grammar_files[key].path === mainGrammarLocation
             );
 
-            // Set the main grammar file as active, or fall back to the first file
-            grammarState.setActiveFileIndex(mainFileKey || Object.keys(userGrammar.grammar_files)[0]);
+            // Set the main grammar file as active ONLY if no file is currently active
+            // This prevents switching files when user is typing in a different file
+            if (grammarState.activeFileIndex === undefined) {
+                grammarState.setActiveFileIndex(mainFileKey || Object.keys(userGrammar.grammar_files)[0]);
+            }
         }
     }, [grammarState.userGrammar]);
 

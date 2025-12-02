@@ -52,6 +52,7 @@ export function GrammarEditorPanel({
                         {followParser ? 'Following Parser' : 'Follow Parser'}
                     </Button>
                     <UncontrolledTreeEnvironment
+                        key={activeFileIndex} // Force re-render when active file changes
                         dataProvider={providerRef.current}
                         // @ts-ignore
                         getItemTitle={item => {
