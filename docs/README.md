@@ -202,16 +202,6 @@ Alle Patterns haben funktionierende Code-Beispiele.
 
 ---
 
-## 📝 Changelog
-
-### 2025-11-23
-- ✅ Initiale Dokumentation erstellt
-- ✅ ARCHITECTURE.md komplett
-- ✅ QUICK_REFERENCE.md komplett
-- ✅ README.md erstellt
-
----
-
 ## 📞 Support
 
 ### Fragen zur Dokumentation?

@@ -76,6 +76,7 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
     }
 
     if (!currentNode) {
+        // DEBUG
         console.log("ParseOptionsOverlay: No current node found", {
             currentStep,
             step_id: nextParseStepInfo.step_id,
@@ -92,22 +93,6 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
     }
 
     const chosenIndex = nextParseStepInfo.chosen_transition_index - 1; // 1-based to 0-based
-
-    // Convert flow coordinates to screen coordinates
-    // This ensures perfect alignment regardless of zoom/pan
-    const flowNodeCenter = {
-        x: currentNode.position.x + nodeWidth / 2,
-        y: currentNode.position.y + nodeHeight / 2
-    };
-
-    const screenPos = flowToScreen(flowNodeCenter.x, flowNodeCenter.y);
-
-    console.log("ParseOptionsOverlay rendering:", {
-        currentNode: currentNode.id,
-        flowPosition: currentNode.position,
-        screenPosition: screenPos,
-        transitions: nextParseStepInfo.possible_transitions.length
-    });
 
     const verticalSpacing = 80;
     const horizontalOffset = 150;
