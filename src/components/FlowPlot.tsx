@@ -33,6 +33,8 @@ import {Badge} from "./ui/badge.tsx";
 import {Checkbox, CheckboxField, CheckboxGroup} from "./ui/checkbox.tsx";
 import {ParseStepInfo} from "../interfaces/UserGrammar.ts";
 import {ParseOptionsOverlay} from "./ParseOptionsOverlay";
+import {ParseTreeNodeInfo} from "../interfaces/ParseTreeNodeInfo";
+import {invoke} from "@tauri-apps/api/core";
 
 type FlowProps = {
     node: ParseTreeNode[];
@@ -48,6 +50,7 @@ type FlowProps = {
     onFlowLayoutDirectionChange: (direction: LayoutDirection) => void;
     autoCenterActiveNode: boolean;
     onAutoCenterActiveNodeChange: (value: boolean) => void;
+    parseInfoId: string | undefined;
 };
 
 const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
@@ -130,7 +133,7 @@ const getLayoutedElements = (
     expandedNodes: Set<string>,
     onToggleNode: (nodeId: string) => void,
     _direction: LayoutDirection = "TB",
-    lastAddedNodeIds?: Set<string> | null,
+    currentNodeId?: string | null,
 ) => {
     // Filter visible edges to only those connecting visible nodes
     const visibleNodes = getVisibleNodes(nodes, edges, expandedNodes);
@@ -155,7 +158,7 @@ const getLayoutedElements = (
 
     const newNodes = visibleNodes.map((node) => {
         const nodeWithPosition = dagreGraph.node(node.id);
-        const isLastAdded = lastAddedNodeIds?.has(node.id);
+        const isLastAdded = currentNodeId === node.id;
 
         return {
             ...node,
@@ -197,9 +200,13 @@ const Flow = ({
                   flowLayoutDirection,
                   onFlowLayoutDirectionChange,
                   autoCenterActiveNode,
-                  onAutoCenterActiveNodeChange
+                  onAutoCenterActiveNodeChange,
+                  parseInfoId
 }: FlowProps) => {
     const rfInstance = useRef<any | null>(null); // not pretty, but typing did not work
+
+    // Track the current parse tree node ID from backend
+    const [currentNodeId, setCurrentNodeId] = useState<string | null>(null);
 
     // Track expanded nodes in a Set, with root nodes expanded by default
     const [expandedNodes, setExpandedNodes] = useState(() => {
@@ -220,10 +227,29 @@ const Flow = ({
     // whether automatic expanding is toggled on
     const [automaticExpanding, setAutomaticExpanding] = useState(true);
 
-    const [lastAddedNodeIds, setLastAddedNodeIds] = useState<Set<string> | null>(null);
-
     // Track if we should trigger auto-center (only when new nodes are added, not on expand/collapse)
     const shouldAutoCenterRef = useRef<boolean>(false);
+
+    // Fetch current parse tree node info from backend
+    useEffect(() => {
+        const fetchCurrentNodeInfo = async () => {
+            if (parseInfoId) {
+                try {
+                    const nodeInfo = await invoke<ParseTreeNodeInfo>("get_current_parse_tree_node_info", {
+                        id: parseInt(parseInfoId)
+                    });
+                    setCurrentNodeId(nodeInfo.id);
+                } catch (error) {
+                    console.error("Error fetching current parse tree node info:", error);
+                    setCurrentNodeId(null);
+                }
+            } else {
+                setCurrentNodeId(null);
+            }
+        };
+
+        fetchCurrentNodeInfo();
+    }, [parseInfoId, current_step]);
 
     // Toggle function to expand/collapse individual nodes
     const onToggleNode = useCallback((nodeId: string) => {
@@ -261,7 +287,7 @@ const Flow = ({
         expandedNodes,
         onToggleNode,
         direction,
-        lastAddedNodeIds
+        currentNodeId
     );
 
     const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
@@ -292,13 +318,13 @@ const Flow = ({
                 expandedNodes,
                 onToggleNode,
                 newDirection,
-                lastAddedNodeIds
+                currentNodeId
             );
 
             setNodes([...layoutedNodes]);
             setEdges([...layoutedEdges]);
         },
-        [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges, direction, onFlowLayoutDirectionChange, lastAddedNodeIds]
+        [paramNodes, paramEdges, expandedNodes, onToggleNode, setNodes, setEdges, direction, onFlowLayoutDirectionChange, currentNodeId]
     );
 
     const expandAll = () => {
@@ -363,7 +389,6 @@ const Flow = ({
                 if (currentIds.has(id)) next.add(id);
             });
 
-            let newestId: string | null = null;
             let hasNewNodes = false;
 
             if (autoExpandNew && prevNodeIdsRef.current) {
@@ -386,23 +411,15 @@ const Flow = ({
                             cur = parent.get(cur);
                         }
                     });
-
-                    // choose the "most recent" as the last in paramNodes
-                    const index = new Map(paramNodes.map((n, i) => [n.id, i]));
-                    newIds.sort((a, b) => (index.get(a)! - index.get(b)!));
-                    newestId = newIds[newIds.length - 1];
                 }
             }
 
             // snapshot after computing next
             prevNodeIdsRef.current = currentIds;
 
-            // Update the highlight *after* we finish setExpandedNodes
-            if (newestId !== null) {
-                // Only set shouldAutoCenter if we actually detected new nodes
-                shouldAutoCenterRef.current = hasNewNodes;
-                // schedule on next tick to avoid setState-in-setState warnings in strict mode
-                setLastAddedNodeIds(new Set<string>([newestId]));
+            // Set shouldAutoCenter if we actually detected new nodes
+            if (hasNewNodes) {
+                shouldAutoCenterRef.current = true;
             }
 
             return next;
@@ -417,12 +434,11 @@ const Flow = ({
         reconcileExpanded(automaticExpanding);
     }, [paramNodes, paramEdges, automaticExpanding, reconcileExpanded]);
 
-    // Auto-center the newly added node if the setting is enabled
+    // Auto-center the current node if the setting is enabled
     useEffect(() => {
         // Only center if we should (new nodes added, not just expand/collapse)
-        if (autoCenterActiveNode && shouldAutoCenterRef.current && lastAddedNodeIds && lastAddedNodeIds.size > 0 && rfInstance.current) {
-            const nodeId = Array.from(lastAddedNodeIds)[0];
-            const node = nodes.find(n => n.id === nodeId);
+        if (autoCenterActiveNode && shouldAutoCenterRef.current && currentNodeId && rfInstance.current) {
+            const node = nodes.find(n => n.id === currentNodeId);
 
             if (node) {
                 // Center the view on the node with animation
@@ -436,7 +452,7 @@ const Flow = ({
             // Reset the flag after centering
             shouldAutoCenterRef.current = false;
         }
-    }, [lastAddedNodeIds, autoCenterActiveNode, nodes]);
+    }, [currentNodeId, autoCenterActiveNode, nodes]);
 
     function onChangeListener(event: React.ChangeEvent<HTMLInputElement>) {
         const value = parseInt(event.target.value, 10);
@@ -568,7 +584,7 @@ const Flow = ({
             <Background variant={BackgroundVariant.Dots} gap={12} size={1}/>
             <ParseOptionsOverlay
                 nextParseStepInfo={next_parse_step_info}
-                lastAddedNodeIds={lastAddedNodeIds}
+                currentNodeId={currentNodeId}
                 currentStep={current_step}
             />
         </ReactFlow>

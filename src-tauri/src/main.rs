@@ -225,6 +225,17 @@ struct ParseStepInfo {
     input_context_snippet: Option<String>,
 }
 
+/// Mirrors `ParseTreeNodeInfo`, return type of `get_current_parse_tree_node_info`
+#[derive(Debug, FromPyObject, Serialize)]
+#[pyo3(from_item_all)]
+#[serde(rename_all = "snake_case")]
+struct ParseTreeNodeInfo {
+    id: String,
+    node_type: String,
+    rule_name: Option<String>,
+    token: Option<String>,
+}
+
 #[derive(Debug, FromPyObject, Serialize)]
 #[pyo3(from_item_all)]
 #[serde(rename_all = "camelCase")]
@@ -307,6 +318,22 @@ fn get_next_parse_step_info(id: usize, store: State<ParseInfoStore>) -> Result<P
     })?;
 
     next_step
+}
+
+/// Gets information about the current parse tree node
+#[tauri::command]
+fn get_current_parse_tree_node_info(id: usize, store: State<ParseInfoStore>) -> Result<ParseTreeNodeInfo, String> {
+    let nodes = store.nodes.lock().unwrap();
+    let parse_info = nodes.get(&id).ok_or("Invalid parse info id")?;
+
+    Python::with_gil(|py| {
+        let py_node = parse_info
+            .getattr(py, "get_current_parse_tree_node_info")
+            .map_err(|e| e.to_string())?
+            .call0(py)
+            .map_err(|e| e.to_string())?;
+        py_node.extract(py).map_err(|e| e.to_string())
+    })
 }
 
 /// Gets the list of lexemes used in the expression. It also gets where the lexemes are located in the input string.
@@ -407,6 +434,7 @@ fn main() {
             get_user_grammar,
             get_current_parse_step_info,
             get_next_parse_step_info,
+            get_current_parse_tree_node_info,
             get_token_list,
             step_forwards,
             step_backwards,

@@ -98,6 +98,7 @@ function App() {
                                     setFlowLayoutDirection={flowLayoutState.setFlowLayoutDirection}
                                     autoCenterActiveNode={flowLayoutState.autoCenterActiveNode}
                                     setAutoCenterActiveNode={flowLayoutState.setAutoCenterActiveNode}
+                                    parseInfoId={parseState.parseInfo}
                                 />
                             </div>
                         </Allotment.Pane>

@@ -29,6 +29,7 @@ interface ParseTreePanelProps {
     setFlowLayoutDirection: (direction: 'TB' | 'LR') => void;
     autoCenterActiveNode: boolean;
     setAutoCenterActiveNode: (value: boolean) => void;
+    parseInfoId: string | undefined;
 }
 
 function hasChangedGrammarFile(userGrammar: UserGrammar): boolean {
@@ -56,6 +57,7 @@ export function ParseTreePanel({
     setFlowLayoutDirection,
     autoCenterActiveNode,
     setAutoCenterActiveNode,
+    parseInfoId,
 }: ParseTreePanelProps) {
     return (
         <div className="flex-1 min-h-0">
@@ -79,6 +81,7 @@ export function ParseTreePanel({
                         onFlowLayoutDirectionChange={setFlowLayoutDirection}
                         autoCenterActiveNode={autoCenterActiveNode}
                         onAutoCenterActiveNodeChange={setAutoCenterActiveNode}
+                        parseInfoId={parseInfoId}
                     />
                     {userGrammar && hasChangedGrammarFile(userGrammar) && (
                         <>

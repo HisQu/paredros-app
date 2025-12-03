@@ -6,13 +6,13 @@ import { nodeWidth, nodeHeight } from '../constants';
 
 interface ParseOptionsOverlayProps {
     nextParseStepInfo: ParseStepInfo | undefined;
-    lastAddedNodeIds: Set<string> | null;
+    currentNodeId: string | null;
     currentStep?: string;
 }
 
 export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
     nextParseStepInfo,
-    lastAddedNodeIds,
+    currentNodeId,
     currentStep
 }) => {
     const reactFlowInstance = useReactFlow();
@@ -64,10 +64,9 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
         currentNode = nodes.find(n => n.id === nextParseStepInfo.step_id);
     }
 
-    // Strategy 4: Find the most recent node (last added) - most reliable for new steps
-    if (!currentNode && lastAddedNodeIds && lastAddedNodeIds.size > 0) {
-        const lastAddedId = Array.from(lastAddedNodeIds)[0];
-        currentNode = nodes.find(n => n.id === lastAddedId);
+    // Strategy 4: Use the current node from backend
+    if (!currentNode && currentNodeId) {
+        currentNode = nodes.find(n => n.id === currentNodeId);
     }
 
     // Strategy 5: Find the last node in the list (most recently created)
@@ -82,7 +81,7 @@ export const ParseOptionsOverlay: React.FC<ParseOptionsOverlayProps> = ({
             step_id: nextParseStepInfo.step_id,
             available_node_ids: nodes.slice(0, 5).map(n => n.id),
             total_nodes: nodes.length,
-            lastAddedNodeIds: lastAddedNodeIds ? Array.from(lastAddedNodeIds) : null,
+            currentNodeId: currentNodeId,
             sample_trace_steps: nodes.slice(0, 3).map(n => ({
                 nodeId: n.id,
                 traceSteps: Array.isArray(n.data.traceSteps) ? n.data.traceSteps.map(s => s.id) : 'not an array',
